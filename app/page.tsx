@@ -3,20 +3,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 /**
- * ZERO-CLICK PASTE → AUTO UPGRADE LIST (TH-AWARE) + CONSIGLI FARM/WAR
+ * PASTE → AUTO LIST (TH-aware) + Consigli FARM/WAR
+ * - TH: esplicito → buildings.weapon → fallback pets=14
+ * - ID→Nome: ITALIANO (eroi, strutture, trappole, risorse) dai tuoi ID
+ * - Mostra:
+ *    1) Elenco upgrade (solo dove conosciamo il max per il tuo TH)
+ *    2) Pannello “Elementi senza max definito (TH14)” → ti dice cosa manca per completare i cap
  *
- * - Incolli un JSON o frammento: l’app sanifica, parse e genera subito l’elenco.
- * - Rilevo il TH:
- *    1) cerco campi: townHallLevel / town_hall / th / thLevel (anche annidati)
- *    2) se non trovati: cerco nel blocco buildings/buildings2 l’entry con "weapon" → il suo lvl è il TH (Giga)
- *    3) se ancora niente: se trovo "pets" → assumo TH=14 (heuristica valida)
- * - Mostro solo elementi con nome e cap noti (Heroes, Pets, Hero Equipment) **limitati al tuo TH**.
- * - Sotto trovi due liste: consigli **FARM** e **WAR**, calcolate sui tuoi deficit.
- *
- * NOTE FUTURE:
- * - Per far apparire anche difese/trappole/strutture serve la crosswalk ID→Nome + cap-per-TH.
- *   Il codice è pronto per estenderla (vedi ID_NAME_MAP e CAPS_BY_TH), ma qui NON
- *   metto nomi “indovinati”: preferisco essere corretto piuttosto che sbagliare etichette.
+ * NOTE: per ora i max TH li abbiamo completi per Eroi, Pets, Equipaggiamento.
+ *       Per strutture/trappole/risorse non inserisco valori “a caso”: li elenchiamo nel pannello “manca max”.
+ *       Appena mi confermi i max TH14 per qualche voce, li aggiungo e appariranno nell’elenco upgrade.
  */
 
 // -------------------- Utils: parse frammenti JSON --------------------
@@ -97,75 +93,147 @@ function detectTownHall(json: any): number | undefined {
   return undefined;
 }
 
-// -------------------- Caps per TH (Heroes / Pets / Equipment) --------------------
+// -------------------- Caps per TH (ITA) — completi per Eroi/Pets/Equip --------------------
 type Caps = { [name: string]: number };
 
-/** Cap-by-TH (fonti community 2024–2025):
- *  - Pets compaiono da TH14 (max ~10)
- *  - Equipment via Blacksmith: cap fino a ~20 a TH14+
- *  - Eroi: TH14 → BK/AQ 85, GW 60, RC 30; TH17 → BK/AQ 100, GW 75, RC 50
- *  (NB: qui copriamo i principali per la tua UI; estendibile senza toccare la logica)
- */
+// TH14 caps usati per la tua base (fonte community; non invento per strutture finché non me li confermi)
 const CAPS_BY_TH: Record<number, Caps> = {
-  11: { 'Barbarian King': 50, 'Archer Queen': 50, 'Grand Warden': 20, 'Royal Champion': 0,  'Pet: L.A.S.S.I': 0,  'Pet: Electro Owl': 0,  'Pet: Mighty Yak': 0,  'Pet: Unicorn': 0,  'Equipment': 15 },
-  12: { 'Barbarian King': 65, 'Archer Queen': 65, 'Grand Warden': 40, 'Royal Champion': 0,  'Pet: L.A.S.S.I': 0,  'Pet: Electro Owl': 0,  'Pet: Mighty Yak': 0,  'Pet: Unicorn': 0,  'Equipment': 15 },
-  13: { 'Barbarian King': 75, 'Archer Queen': 75, 'Grand Warden': 50, 'Royal Champion': 25, 'Pet: L.A.S.S.I': 0,  'Pet: Electro Owl': 0,  'Pet: Mighty Yak': 0,  'Pet: Unicorn': 0,  'Equipment': 18 },
-  14: { 'Barbarian King': 85, 'Archer Queen': 85, 'Grand Warden': 60, 'Royal Champion': 30, 'Pet: L.A.S.S.I': 10, 'Pet: Electro Owl': 10, 'Pet: Mighty Yak': 10, 'Pet: Unicorn': 10, 'Equipment': 20 },
-  15: { 'Barbarian King': 85, 'Archer Queen': 85, 'Grand Warden': 65, 'Royal Champion': 40, 'Pet: L.A.S.S.I': 10, 'Pet: Electro Owl': 10, 'Pet: Mighty Yak': 10, 'Pet: Unicorn': 10, 'Equipment': 20 },
-  16: { 'Barbarian King': 95, 'Archer Queen': 95, 'Grand Warden': 70, 'Royal Champion': 45, 'Pet: L.A.S.S.I': 10, 'Pet: Electro Owl': 10, 'Pet: Mighty Yak': 10, 'Pet: Unicorn': 10, 'Equipment': 20 },
-  17: { 'Barbarian King':100, 'Archer Queen':100, 'Grand Warden': 75, 'Royal Champion': 50, 'Pet: L.A.S.S.I': 10, 'Pet: Electro Owl': 10, 'Pet: Mighty Yak': 10, 'Pet: Unicorn': 10, 'Equipment': 20 },
+  14: {
+    // EROI
+    'Re Barbaro': 85,
+    'Regina degli Arcieri': 85,
+    'Gran Sorvegliante': 60,
+    'Campionessa Reale': 30,
+    // PETS (classici)
+    'L.A.S.S.I': 10,
+    'Gufo Elettrico': 10,
+    'Yak Potente': 10,
+    'Unicorno': 10,
+    // EQUIPAGGIAMENTO (cap a TH14)
+    'Equipaggiamento Eroe': 20,
+  },
+  // fallback globali (TH17) li gestiamo unendo con GLOBAL_CAPS più sotto
 };
-// Max “globali” usati solo se TH non è deducibile
-const GLOBAL_CAPS: Caps = CAPS_BY_TH[17];
 
-// -------------------- ID → NAME per gli elementi che copriamo ora --------------------
+// Max “globali” (usati solo se TH non è deducibile)
+const GLOBAL_CAPS: Caps = {
+  'Re Barbaro': 100,
+  'Regina degli Arcieri': 100,
+  'Gran Sorvegliante': 75,
+  'Campionessa Reale': 50,
+  'L.A.S.S.I': 10,
+  'Gufo Elettrico': 10,
+  'Yak Potente': 10,
+  'Unicorno': 10,
+  'Equipaggiamento Eroe': 20,
+};
+
+// -------------------- ID → NOME (ITALIANO) --------------------
+/** NOTA: ho tradotto tutto in italiano.
+ *  Gli eroi ora sono completi: Re Barbaro, Regina degli Arcieri, Gran Sorvegliante, Campionessa Reale.
+ *  Per strutture/trappole ho usato le denominazioni italiane standard di gioco.
+ */
 const ID_NAME_MAP: Record<
   string,
-  { name: string; cat: 'hero' | 'pet' | 'equipment' | 'building' | 'trap' | 'unit' | 'other' }
+  { name: string; cat: 'hero' | 'pet' | 'equipment' | 'building' | 'trap' | 'resource' | 'other' }
 > = {
-  // HEROES
-  '28000003': { name: 'Barbarian King', cat: 'hero' },
-  '28000005': { name: 'Archer Queen',   cat: 'hero' },
+  // --- EROI (dai tuoi dump comuni) ---
+  '28000003': { name: 'Re Barbaro',            cat: 'hero' },
+  '28000005': { name: 'Regina degli Arcieri',  cat: 'hero' },
+  '28000004': { name: 'Gran Sorvegliante',     cat: 'hero' },
+  '28000006': { name: 'Campionessa Reale',     cat: 'hero' },
 
-  // PETS (TH14+ classici)
-  '73000000': { name: 'Pet: L.A.S.S.I',   cat: 'pet' },
-  '73000001': { name: 'Pet: Electro Owl', cat: 'pet' },
-  '73000002': { name: 'Pet: Mighty Yak',  cat: 'pet' },
-  '73000003': { name: 'Pet: Unicorn',     cat: 'pet' },
+  // --- PETS (TH14+ classici) ---
+  '73000000': { name: 'L.A.S.S.I',             cat: 'pet' },
+  '73000001': { name: 'Gufo Elettrico',        cat: 'pet' },
+  '73000002': { name: 'Yak Potente',           cat: 'pet' },
+  '73000003': { name: 'Unicorno',              cat: 'pet' },
 
-  // HERO EQUIPMENT (generico → cap per TH, di base 20 da TH14)
-  '90000000': { name: 'Equipment', cat: 'equipment' },
-  '90000001': { name: 'Equipment', cat: 'equipment' },
-  '90000002': { name: 'Equipment', cat: 'equipment' },
-  '90000003': { name: 'Equipment', cat: 'equipment' },
-  '90000004': { name: 'Equipment', cat: 'equipment' },
-  '90000005': { name: 'Equipment', cat: 'equipment' },
-  '90000006': { name: 'Equipment', cat: 'equipment' },
-  '90000007': { name: 'Equipment', cat: 'equipment' },
-  '90000008': { name: 'Equipment', cat: 'equipment' },
-  '90000009': { name: 'Equipment', cat: 'equipment' },
-  '90000010': { name: 'Equipment', cat: 'equipment' },
-  '90000011': { name: 'Equipment', cat: 'equipment' },
-  '90000013': { name: 'Equipment', cat: 'equipment' },
-  '90000014': { name: 'Equipment', cat: 'equipment' },
-  '90000015': { name: 'Equipment', cat: 'equipment' },
-  '90000017': { name: 'Equipment', cat: 'equipment' },
-  '90000019': { name: 'Equipment', cat: 'equipment' },
-  '90000020': { name: 'Equipment', cat: 'equipment' },
-  '90000022': { name: 'Equipment', cat: 'equipment' },
-  '90000024': { name: 'Equipment', cat: 'equipment' },
-  '90000032': { name: 'Equipment', cat: 'equipment' },
-  '90000034': { name: 'Equipment', cat: 'equipment' },
-  '90000035': { name: 'Equipment', cat: 'equipment' },
-  '90000039': { name: 'Equipment', cat: 'equipment' },
-  '90000040': { name: 'Equipment', cat: 'equipment' },
-  '90000041': { name: 'Equipment', cat: 'equipment' },
-  '90000042': { name: 'Equipment', cat: 'equipment' },
-  '90000043': { name: 'Equipment', cat: 'equipment' },
-  '90000044': { name: 'Equipment', cat: 'equipment' },
-  '90000047': { name: 'Equipment', cat: 'equipment' },
-  '90000048': { name: 'Equipment', cat: 'equipment' },
-  '90000049': { name: 'Equipment', cat: 'equipment' },
+  // --- EQUIPAGGIAMENTO EROI (generico) ---
+  '90000000': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000001': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000002': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000003': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000004': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000005': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000006': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000007': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000008': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000009': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000010': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000011': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000013': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000014': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000015': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000017': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000019': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000020': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000022': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000024': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000032': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000034': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000035': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000039': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000040': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000041': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000042': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000043': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000044': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000047': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000048': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+  '90000049': { name: 'Equipaggiamento Eroe',  cat: 'equipment' },
+
+  // --- STRUTTURE / DIFESE (italiano) ---
+  '1000008': { name: 'Cannone',                 cat: 'building' },          // Cannon
+  '1000009': { name: 'Torre degli Arcieri',     cat: 'building' },          // Archer Tower
+  '1000013': { name: 'Mortaio',                 cat: 'building' },          // Mortar
+  '1000012': { name: 'Difesa Aerea',            cat: 'building' },          // Air Defense
+  '1000011': { name: 'Torre dello Stregone',    cat: 'building' },          // Wizard Tower
+  '1000028': { name: 'Spingiaria Aerea',        cat: 'building' },          // Air Sweeper
+  '1000019': { name: 'Tesla Nascosta',          cat: 'building' },          // Hidden Tesla
+  '1000032': { name: 'Torre delle Bombe',       cat: 'building' },          // Bomb Tower
+  '1000021': { name: 'Balestra',                cat: 'building' },          // X-Bow
+  '1000027': { name: 'Torre Infernale',         cat: 'building' },          // Inferno Tower
+  '1000031': { name: 'Artiglieria Aquila',      cat: 'building' },          // Eagle Artillery
+  '1000067': { name: 'Lanciascaglie',           cat: 'building' },          // Scattershot
+  '1000015': { name: 'Capanna del Costruttore', cat: 'building' },          // Builder’s Hut
+  '1000072': { name: 'Torre degli Incantesimi', cat: 'building' },          // Spell Tower
+  '1000077': { name: 'Monolite',                cat: 'building' },          // Monolith
+  '1000089': { name: 'Sputafuoco',              cat: 'building' },          // Firespitter
+  '1000010': { name: 'Muro',                    cat: 'building' },          // Wall
+  '1000084': { name: 'Torre Multi-Arceri',      cat: 'building' },          // Multi-Archer Tower
+  '1000085': { name: 'Cannone Rimbalzo',        cat: 'building' },          // Ricochet Cannon
+  '1000079': { name: 'Torre Multi-Ingranaggi',  cat: 'building' },          // Multi-Gear Tower
+  '1000001': { name: 'Municipio',               cat: 'building' },          // Town Hall
+
+  // --- TRAPPOLE ---
+  '12000000': { name: 'Bomba',                   cat: 'trap' },
+  '12000001': { name: 'Trappola a Molla',        cat: 'trap' },
+  '12000002': { name: 'Bomba Gigante',          cat: 'trap' },
+  '12000005': { name: 'Bomba Aerea',             cat: 'trap' },
+  '12000006': { name: 'Mina Aerea a Ricerca',    cat: 'trap' },
+  '12000008': { name: 'Trappola Scheletrica',    cat: 'trap' },
+  '12000016': { name: 'Trappola Tornado',        cat: 'trap' },
+  '12000020': { name: 'Giga Bomba',              cat: 'trap' },
+
+  // --- RISORSE / EDIFICI DI SUPPORTO ---
+  '1000004': { name: "Miniera d'Oro",            cat: 'resource' },
+  '1000002': { name: "Estrattore d'Elisir",      cat: 'resource' },
+  '1000005': { name: "Deposito d'Oro",           cat: 'resource' },
+  '1000003': { name: "Deposito d'Elisir",        cat: 'resource' },
+  '1000023': { name: "Trivella d'Elisir Nero",   cat: 'resource' },
+  '1000024': { name: "Deposito d'Elisir Nero",   cat: 'resource' },
+  '1000014': { name: 'Castello del Clan',        cat: 'resource' },
+  '1000000': { name: 'Campo d’Addestramento',    cat: 'resource' }, // Army Camp
+  '1000006': { name: 'Caserma',                  cat: 'resource' },
+  '1000026': { name: 'Caserma Nera',             cat: 'resource' },
+  '1000007': { name: 'Laboratorio',              cat: 'resource' },
+  '1000020': { name: 'Fabbrica degli Incantesimi', cat: 'resource' },
+  '1000071': { name: 'Sala degli Eroi',          cat: 'resource' }, // Hero Hall (nuove meccaniche)
+  '1000029': { name: 'Fabbrica degli Incantesimi Oscuri', cat: 'resource' },
+  '1000070': { name: 'Fucina',                   cat: 'resource' }, // Blacksmith
+  '1000059': { name: 'Officina d’Assedio',       cat: 'resource' }, // Workshop
+  '1000068': { name: 'Casa degli Animali',       cat: 'resource' }, // Pet House
 };
 
 // -------------------- Raccolta entries dal JSON --------------------
@@ -187,27 +255,28 @@ function collectEntries(json: any): RawEntry[] {
   return out;
 }
 
-// -------------------- Consigli FARM / WAR (TH14) --------------------
+// -------------------- Consigli FARM / WAR (TH14 centrico) --------------------
 const FARM_PRIORITY_TH14 = [
-  'Laboratory', 'Clan Castle', 'Pet House', 'Blacksmith', 'Equipment',
-  'Army Camp', 'Barracks', 'Factory', 'Workshop',
-  'Barbarian King', 'Archer Queen', 'Grand Warden', 'Royal Champion',
-  'Builder’s Hut', 'X-Bow', 'Air Defense', 'Wizard Tower', 'Bomb Tower'
+  'Laboratorio', 'Castello del Clan', 'Casa degli Animali', 'Fucina', 'Equipaggiamento',
+  "Campo d’Addestramento", 'Caserma', 'Fabbrica', 'Officina',
+  'Re Barbaro', 'Regina degli Arcieri', 'Gran Sorvegliante', 'Campionessa Reale',
+  'Capanna del Costruttore', 'Balestra', 'Difesa Aerea', 'Torre dello Stregone', 'Torre delle Bombe'
 ];
 
 const WAR_PRIORITY_TH14 = [
-  'Giga', 'Town Hall', 'Eagle Artillery', 'Scattershot', 'Inferno Tower',
-  'Builder’s Hut', 'X-Bow', 'Air Defense',
-  'Clan Castle', 'Laboratory', 'Blacksmith', 'Equipment',
-  'Barbarian King', 'Archer Queen', 'Grand Warden', 'Royal Champion',
+  'Giga', 'Municipio', 'Artiglieria Aquila', 'Lanciascaglie', 'Torre Infernale',
+  'Capanna del Costruttore', 'Balestra', 'Difesa Aerea',
+  'Castello del Clan', 'Laboratorio', 'Fucina', 'Equipaggiamento',
+  'Re Barbaro', 'Regina degli Arcieri', 'Gran Sorvegliante', 'Campionessa Reale',
 ];
 
-// -------------------- UI --------------------
+// -------------------- UI + Logica --------------------
 type Row = { name: string; have: number; max: number; countAtLevel: number; totalByName: number; deficit: number; };
 
 export default function Page() {
   const [pasted, setPasted] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
+  const [missingCaps, setMissingCaps] = useState<{ name: string; have: number; count: number }[]>([]);
   const [error, setError] = useState('');
   const [th, setTh] = useState<number | undefined>(undefined);
 
@@ -221,13 +290,14 @@ export default function Page() {
 
   function getCapsForTH(th?: number): Caps {
     if (!th) return GLOBAL_CAPS;
-    const best = [17,16,15,14,13,12,11].find(x => x <= (th || 0)) || 11;
-    return { ...GLOBAL_CAPS, ...(CAPS_BY_TH[best] || {}) };
+    const capsTH = CAPS_BY_TH[th] || {};
+    return { ...GLOBAL_CAPS, ...capsTH }; // unione: preferisce i valori del TH se presenti
   }
 
   function generate(text: string) {
     setError('');
     setRows([]);
+    setMissingCaps([]);
     setTh(undefined);
     if (!text.trim()) return;
 
@@ -243,58 +313,82 @@ export default function Page() {
     const entries = collectEntries(json);
     if (!entries.length) { setRows([]); return; }
 
-    // 3) totali per ID
+    // totali per ID (per colonne x/y)
     const totalById = new Map<string, number>();
     for (const e of entries) {
       const id = String(e.data);
       totalById.set(id, (totalById.get(id) || 0) + (e.cnt || 1));
     }
 
-    // 4) caps in base al TH
     const caps = getCapsForTH(detectedTH);
 
-    // 5) righe (solo elementi mappati + cap noto)
+    // raggruppo
     const map = new Map<string, Row>();
+    const missingList: { name: string; have: number; count: number }[] = [];
+
     for (const e of entries) {
       const id = String(e.data);
       const meta = ID_NAME_MAP[id];
-      if (!meta) continue; // non mappato → salto (evito nomi sbagliati)
+      if (!meta) continue; // non mappato → ignoro (non sporco UI)
 
       const name = meta.name;
+
+      // max per nome (se definito per questo TH)
       const max = typeof caps[name] === 'number' ? caps[name] : undefined;
-      if (!max || max <= 0) continue;
 
       const have = e.lvl || 0;
-      if (!(have < max)) continue;
+      const count = e.cnt || 1;
+      const tot = totalById.get(id) || count;
+
+      if (typeof max !== 'number') {
+        // riconosciuto ma senza max definito per TH → segnalo nel pannello "mancano max"
+        missingList.push({ name, have, count });
+        continue;
+      }
+
+      if (!(have < max)) continue; // già al cap per il TUO TH
 
       const key = name + '__' + have;
       const prev = map.get(key);
       const row: Row = prev || {
         name, have, max,
         countAtLevel: 0,
-        totalByName: totalById.get(id) || (e.cnt || 1),
+        totalByName: tot,
         deficit: Math.max(0, max - have),
       };
-      row.countAtLevel += e.cnt || 1;
+      row.countAtLevel += count;
       map.set(key, row);
     }
 
-    // Ordine base: eroi > pets > equipment, poi per deficit
+    // Ordine: eroi > pets > equip > buildings/traps/resources, poi deficit
+    const categoryRank = (n: string) =>
+      /re barbaro|regina degli arcieri|gran sorvegliante|campionessa reale/i.test(n) ? 4 :
+      /l\.a\.s\.s\.i|gufo elettrico|yak potente|unicorno/i.test(n) ? 3 :
+      /equipaggiamento/i.test(n) ? 2 : 1;
+
     const baseSorted = Array.from(map.values()).sort((a, b) => {
-      const rank = (n: string) =>
-        /king|queen|warden|champion/i.test(n) ? 3 :
-        /^pet:/i.test(n) ? 2 :
-        (n === 'Equipment' ? 1 : 0);
-      if (rank(b.name) !== rank(a.name)) return rank(b.name) - rank(a.name);
+      if (categoryRank(b.name) !== categoryRank(a.name)) return categoryRank(b.name) - categoryRank(a.name);
       if (b.deficit !== a.deficit) return b.deficit - a.deficit;
-      if (a.name !== b.name) return a.name.localeCompare(b.name);
+      if (a.name !== b.name) return a.name.localeCompare(b.name, 'it');
       return a.have - b.have;
     });
 
+    // missing caps: raggruppa per nome (mostro solo una riga per nome col livello minimo rilevato)
+    const aggMissing = new Map<string, { name: string; have: number; count: number }>();
+    for (const m of missingList) {
+      const prev = aggMissing.get(m.name);
+      if (!prev) aggMissing.set(m.name, m);
+      else {
+        // tieni il livello minimo che abbiamo visto (per prudenza) e somma count
+        aggMissing.set(m.name, { name: m.name, have: Math.min(prev.have, m.have), count: prev.count + m.count });
+      }
+    }
+
     setRows(baseSorted);
+    setMissingCaps(Array.from(aggMissing.values()).sort((a, b) => a.name.localeCompare(b.name, 'it')));
   }
 
-  // Suggerimenti (su TH14 hanno senso pieno; per altri TH rimangono indicativi)
+  // Suggerimenti (su TH14 hanno senso pieno; per altri TH restano indicativi)
   function rankName(list: string[], n: string): number {
     const i = list.findIndex(x => n.toLowerCase().includes(x.toLowerCase()));
     return i === -1 ? 999 : i;
@@ -315,14 +409,14 @@ export default function Page() {
     <div className="wrap">
       <h1>CoC – Upgrade (cap per TH) + Consigli Farm/War</h1>
       <div className="muted small" style={{marginBottom: 8}}>
-        Incolla il JSON/frammento del villaggio. Rilevo il TH e mostro solo ciò che puoi ancora portare al massimo per il tuo TH.
+        Incolla il JSON/frammento del villaggio. TH rilevato automaticamente; elenco limitato ai cap del tuo TH.
       </div>
 
       <div className="panel">
         <textarea
           className="input"
           rows={12}
-          placeholder='Incolla qui. Esempio: "heroes2":[...], "pets":[...], "equipment":[...], ...  (anche senza graffe)'
+          placeholder='Incolla qui. Esempio: "heroes2":[...], "pets":[...], "equipment":[...], "buildings2":[...], ...'
           value={pasted}
           onChange={(e) => setPasted(e.target.value)}
         />
@@ -333,10 +427,11 @@ export default function Page() {
 
       {error && <div className="err small" style={{ margin: '10px 0' }}>{error}</div>}
 
+      {/* Elenco upgrade calcolati */}
       <div className="grid1" style={{ marginTop: 8 }}>
         {rows.length === 0 ? (
           <div className="muted small">
-            Nessun upgrade da mostrare con le info attuali. (Per difese/trappole/strutture, va aggiunta la mappa ID→Nome).
+            Nessun upgrade da mostrare con le info attuali. (Se non vedi difese/trappole, vedi pannello sotto: “mancano max TH14”.)
           </div>
         ) : (
           rows.map((r, i) => (
@@ -349,15 +444,33 @@ export default function Page() {
         )}
       </div>
 
+      {/* Pannello: cosa manca (riconosciuto ma senza max per TH14) */}
+      {missingCaps.length > 0 && (
+        <div className="panel" style={{ marginTop: 16 }}>
+          <div className="title">Elementi senza max definito (TH14)</div>
+          <div className="muted small" style={{marginBottom: 8}}>
+            Sono riconosciuti ma manca il livello massimo per TH14. Dimmi i max (o confermali) e li attivo subito:
+          </div>
+          <ul className="list">
+            {missingCaps.map((m, i) => (
+              <li key={i}>
+                <b>{m.name}</b> — rilevato livello {m.have} (x{m.count})
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Consigli */}
       {rows.length > 0 && (
         <>
           <div className="panel" style={{ marginTop: 16 }}>
             <div className="title">Consiglio FARM</div>
             <div className="muted small" style={{marginBottom: 8}}>
-              Priorità per farming: offense/economia (Lab, CC, Pet House, Blacksmith/Equipment, eserciti) → difese utili a proteggere risorse.
+              Offense/economia (Laboratorio, Castello del Clan, Casa degli Animali, Fucina/Equipaggiamento) → Eroi → difese anti-loot.
             </div>
             {farmAdvice.length === 0 ? (
-              <div className="muted small">Nessuna raccomandazione disponibile dai dati incollati.</div>
+              <div className="muted small">Nessuna raccomandazione disponibile.</div>
             ) : (
               <ul className="list">
                 {farmAdvice.map((r, i) => (
@@ -370,10 +483,10 @@ export default function Page() {
           <div className="panel" style={{ marginTop: 12 }}>
             <div className="title">Consiglio WAR</div>
             <div className="muted small" style={{marginBottom: 8}}>
-              Priorità per guerra: Giga/Town Hall, Eagle, Scatter, Inferno, Builder’s Hut, X-Bow; in parallelo CC/Lab/Equipment ed eroi.
+              Giga/Municipio, Aquila, Lanciascaglie, Infernali, Balestra/Capanna → CC/Lab/Fucina → Eroi.
             </div>
             {warAdvice.length === 0 ? (
-              <div className="muted small">Nessuna raccomandazione disponibile dai dati incollati.</div>
+              <div className="muted small">Nessuna raccomandazione disponibile.</div>
             ) : (
               <ul className="list">
                 {warAdvice.map((r, i) => (
