@@ -3,21 +3,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 /**
- * ZERO-CLICK PASTE → AUTO UPGRADE LIST (TH-AWARE)
+ * ZERO-CLICK PASTE → AUTO UPGRADE LIST (TH-AWARE + FARM/WAR)
  *
  * Novità:
- * - Riconoscimento TH dal JSON se presente (campi: townHallLevel / town_hall / th / thLevel, anche annidati).
- * - Max levels filtrati per TH (Heroes / Pets / Equipment) invece che globali.
- * - Se il TH non è deducibile dal frammento incollato → fallback “TH sconosciuto (uso max globali)”.
- *
- * NOTE:
- * - Per Buildings/Traps serve sempre la mappa ID→Nome + tabella max per TH (hook già pronto sotto).
- * - Per ora copriamo bene Heroes+Pets+Equipment; Buildings/Traps compariranno appena aggiungiamo le mappe ID.
+ * - TH detection:
+ *    1) prova a leggere campi noti: townHallLevel / town_hall / th / thLevel (anche annidati)
+ *    2) fallback: se trovo "pets":[...] ⇒ TH=14 (heuristic robusta per il tuo caso)
+ * - Mostra elenco upgrade limitato ai cap del TH
+ * - Aggiunge "Consiglio FARM" e "Consiglio WAR" per TH14
  */
 
-// ---------------------------------------------------------------
-// TH detection: cerco in più campi comuni e anche annidati
-// ---------------------------------------------------------------
+// -------------------- TH detection helpers --------------------
 function deepFindNumber(obj: any, keys: string[]): number | undefined {
   try {
     const stack = [obj];
@@ -25,79 +21,55 @@ function deepFindNumber(obj: any, keys: string[]): number | undefined {
       const cur = stack.pop();
       if (!cur || typeof cur !== 'object') continue;
       for (const k of keys) {
-        if (cur && Object.prototype.hasOwnProperty.call(cur, k)) {
-          const v = cur[k];
+        if (Object.prototype.hasOwnProperty.call(cur, k)) {
+          const v = (cur as any)[k];
           if (typeof v === 'number') return v;
         }
       }
       for (const v of Object.values(cur)) {
-        if (v && typeof v === 'object') stack.push(v);
+        if (v && typeof v === 'object') stack.push(v as any);
       }
     }
   } catch {}
   return undefined;
 }
 
-/** Prova a dedurre il TH dal JSON incollato. */
-function detectTownHall(json: any): number | undefined {
-  // Campi “classici” che alcuni export includono
-  const direct = deepFindNumber(json, ['townHallLevel', 'town_hall', 'th', 'thLevel']);
-  if (typeof direct === 'number' && direct >= 1 && direct <= 20) return direct;
-
-  // Fallback: nulla di certo → undefined (userà max globali).
+function detectTownHallExplicit(json: any): number | undefined {
+  const n = deepFindNumber(json, ['townHallLevel', 'town_hall', 'th', 'thLevel']);
+  if (typeof n === 'number' && n >= 1 && n <= 20) return n;
   return undefined;
 }
 
-// ---------------------------------------------------------------
-// MAX LEVELS PER TH (Heroes / Pets / Equipment)
-// Fonti generali community 2024–2025 (TH17): Hero caps e Pets ~10, Equipment cap ~20.
-// (Eroi per TH chiave: Warden dal TH11, RC dal TH13; qui imponiamo i cap-by-TH noti/pratici.)
-// ---------------------------------------------------------------
+function hasPets(json: any): boolean {
+  const pets = json?.pets;
+  return Array.isArray(pets) && pets.length > 0;
+}
+
+// -------------------- Caps per TH (Heroes/Pets/Equipment) --------------------
 type Caps = { [name: string]: number };
 
 const CAPS_BY_TH: Record<number, Caps> = {
-  // NB: includiamo solo ciò che usiamo ora (Heroes/Pets/Equipment). Estendibile in futuro.
-  11: { 'Barbarian King': 50, 'Archer Queen': 50, 'Grand Warden': 20, 'Royal Champion': 0,  'Pet: L.A.S.S.I': 0, 'Pet: Electro Owl': 0, 'Pet: Mighty Yak': 0, 'Pet: Unicorn': 0, 'Equipment': 15 },
-  12: { 'Barbarian King': 65, 'Archer Queen': 65, 'Grand Warden': 40, 'Royal Champion': 0,  'Pet: L.A.S.S.I': 0, 'Pet: Electro Owl': 0, 'Pet: Mighty Yak': 0, 'Pet: Unicorn': 0, 'Equipment': 15 },
-  13: { 'Barbarian King': 75, 'Archer Queen': 75, 'Grand Warden': 50, 'Royal Champion': 25, 'Pet: L.A.S.S.I': 0, 'Pet: Electro Owl': 0, 'Pet: Mighty Yak': 0, 'Pet: Unicorn': 0, 'Equipment': 18 },
-  14: { 'Barbarian King': 80, 'Archer Queen': 80, 'Grand Warden': 55, 'Royal Champion': 30, 'Pet: L.A.S.S.I': 10,'Pet: Electro Owl': 10,'Pet: Mighty Yak': 10,'Pet: Unicorn': 10,'Equipment': 18 },
-  15: { 'Barbarian King': 85, 'Archer Queen': 85, 'Grand Warden': 60, 'Royal Champion': 35, 'Pet: L.A.S.S.I': 10,'Pet: Electro Owl': 10,'Pet: Mighty Yak': 10,'Pet: Unicorn': 10,'Equipment': 20 },
-  16: { 'Barbarian King': 95, 'Archer Queen': 95, 'Grand Warden': 70, 'Royal Champion': 45, 'Pet: L.A.S.S.I': 10,'Pet: Electro Owl': 10,'Pet: Mighty Yak': 10,'Pet: Unicorn': 10,'Equipment': 20 },
-  17: { 'Barbarian King':100, 'Archer Queen':100, 'Grand Warden': 75, 'Royal Champion': 50, 'Pet: L.A.S.S.I': 10,'Pet: Electro Owl': 10,'Pet: Mighty Yak': 10,'Pet: Unicorn': 10,'Equipment': 20 },
+  11: { 'Barbarian King': 50, 'Archer Queen': 50, 'Grand Warden': 20, 'Royal Champion': 0,  'Pet: L.A.S.S.I': 0,  'Pet: Electro Owl': 0,  'Pet: Mighty Yak': 0,  'Pet: Unicorn': 0,  'Equipment': 15 },
+  12: { 'Barbarian King': 65, 'Archer Queen': 65, 'Grand Warden': 40, 'Royal Champion': 0,  'Pet: L.A.S.S.I': 0,  'Pet: Electro Owl': 0,  'Pet: Mighty Yak': 0,  'Pet: Unicorn': 0,  'Equipment': 15 },
+  13: { 'Barbarian King': 75, 'Archer Queen': 75, 'Grand Warden': 50, 'Royal Champion': 25, 'Pet: L.A.S.S.I': 0,  'Pet: Electro Owl': 0,  'Pet: Mighty Yak': 0,  'Pet: Unicorn': 0,  'Equipment': 18 },
+  14: { 'Barbarian King': 85, 'Archer Queen': 85, 'Grand Warden': 60, 'Royal Champion': 30, 'Pet: L.A.S.S.I': 10, 'Pet: Electro Owl': 10, 'Pet: Mighty Yak': 10, 'Pet: Unicorn': 10, 'Equipment': 20 },
+  15: { 'Barbarian King': 85, 'Archer Queen': 85, 'Grand Warden': 65, 'Royal Champion': 40, 'Pet: L.A.S.S.I': 10, 'Pet: Electro Owl': 10, 'Pet: Mighty Yak': 10, 'Pet: Unicorn': 10, 'Equipment': 20 },
+  16: { 'Barbarian King': 95, 'Archer Queen': 95, 'Grand Warden': 70, 'Royal Champion': 45, 'Pet: L.A.S.S.I': 10, 'Pet: Electro Owl': 10, 'Pet: Mighty Yak': 10, 'Pet: Unicorn': 10, 'Equipment': 20 },
+  17: { 'Barbarian King':100, 'Archer Queen':100, 'Grand Warden': 75, 'Royal Champion': 50, 'Pet: L.A.S.S.I': 10, 'Pet: Electro Owl': 10, 'Pet: Mighty Yak': 10, 'Pet: Unicorn': 10, 'Equipment': 20 },
 };
+const GLOBAL_CAPS: Caps = CAPS_BY_TH[17];
 
-// Max globali (se TH sconosciuto): stessi cap “internet standard” TH17
-const GLOBAL_CAPS: Caps = {
-  'Barbarian King': 100,
-  'Archer Queen': 100,
-  'Grand Warden': 75,
-  'Royal Champion': 50,
-  'Pet: L.A.S.S.I': 10,
-  'Pet: Electro Owl': 10,
-  'Pet: Mighty Yak': 10,
-  'Pet: Unicorn': 10,
-  'Equipment': 20,
-};
-
-// ---------------------------------------------------------------
-// ID → NAME per quello che copriamo ora (heroes/pets/equipment)
-// ---------------------------------------------------------------
-const ID_NAME_MAP: Record<
-  string,
-  { name: string; cat: 'hero' | 'pet' | 'equipment' | 'building' | 'trap' | 'unit' | 'other' }
-> = {
+// -------------------- ID → NAME (copriamo heroes/pets/equipment del tuo dump) --------------------
+const ID_NAME_MAP: Record<string, { name: string; cat: 'hero'|'pet'|'equipment'|'building'|'trap'|'unit'|'other' }> = {
   // HEROES
   '28000003': { name: 'Barbarian King', cat: 'hero' },
   '28000005': { name: 'Archer Queen',   cat: 'hero' },
-  // (Se in futuro hai Warden/RC: aggiungeremo i loro ID alla mappa)
-
-  // PETS (classici 4)
+  // PETS
   '73000000': { name: 'Pet: L.A.S.S.I',   cat: 'pet' },
   '73000001': { name: 'Pet: Electro Owl', cat: 'pet' },
   '73000002': { name: 'Pet: Mighty Yak',  cat: 'pet' },
   '73000003': { name: 'Pet: Unicorn',     cat: 'pet' },
-
-  // HERO EQUIPMENT (range visto nel tuo dump)
+  // EQUIPMENT (generico → cap 20)
   '90000000': { name: 'Equipment', cat: 'equipment' },
   '90000001': { name: 'Equipment', cat: 'equipment' },
   '90000002': { name: 'Equipment', cat: 'equipment' },
@@ -130,15 +102,10 @@ const ID_NAME_MAP: Record<
   '90000047': { name: 'Equipment', cat: 'equipment' },
   '90000048': { name: 'Equipment', cat: 'equipment' },
   '90000049': { name: 'Equipment', cat: 'equipment' },
-
-  // Buildings/Traps: hook da riempire quando aggiungiamo la crosswalk
 };
 
-// ---------------------------------------------------------------
-// Parser frammenti JSON e raccolta
-// ---------------------------------------------------------------
+// -------------------- Parsing frammenti JSON --------------------
 function tryParse<T = any>(s: string): T { return JSON.parse(s); }
-
 function sanitizeToJSONObject(rawText: string): any {
   let t = (rawText || '').trim();
   if (t.startsWith('{') || t.startsWith('[')) {
@@ -167,7 +134,7 @@ function collectEntries(json: any): RawEntry[] {
     if (Array.isArray(arr)) {
       for (const it of arr) {
         if (it && typeof it === 'object' && 'data' in it && 'lvl' in it) {
-          out.push({ data: Number(it.data), lvl: Number(it.lvl), cnt: Number((it as any).cnt || 1) });
+          out.push({ data: Number((it as any).data), lvl: Number((it as any).lvl), cnt: Number((it as any).cnt || 1) });
         }
       }
     }
@@ -175,9 +142,29 @@ function collectEntries(json: any): RawEntry[] {
   return out;
 }
 
-// ---------------------------------------------------------------
-// Calcolo righe
-// ---------------------------------------------------------------
+// -------------------- Consigli FARM / WAR (TH14) --------------------
+const FARM_PRIORITY_TH14 = [
+  // Offense & economia per farming
+  'Laboratory', 'Clan Castle', 'Pet House', 'Blacksmith/Equipment',
+  'Army Camp', 'Barracks/Factory/Workshop',
+  'Barbarian King', 'Archer Queen', 'Grand Warden', 'Royal Champion',
+  // Difese utili a proteggere risorse
+  'Builder’s Hut', 'X-Bow', 'Air Defense', 'Wizard Tower', 'Bomb Tower'
+];
+
+const WAR_PRIORITY_TH14 = [
+  // Difese core + town hall weapon + offense chiave
+  'Giga Inferno (Town Hall)', 'Eagle Artillery', 'Scattershot', 'Inferno Tower',
+  'Builder’s Hut', 'X-Bow', 'Air Defense',
+  // Offense
+  'Clan Castle', 'Laboratory', 'Blacksmith/Equipment',
+  'Barbarian King', 'Archer Queen', 'Grand Warden', 'Royal Champion',
+];
+
+// Nota: questi elenchi sono linee guida (fonti 2024–2025). Li usiamo come
+// "ranking" per suggerire l'ordine a parità di deficit.
+
+// -------------------- UI component --------------------
 type Row = { name: string; have: number; max: number; countAtLevel: number; totalByName: number; deficit: number; };
 
 export default function Page() {
@@ -195,65 +182,55 @@ export default function Page() {
 
   function getCapsForTH(th?: number): Caps {
     if (!th) return GLOBAL_CAPS;
-    // prendo la riga migliore disponibile ≤ th, e poi upmerge con global per eventuali chiavi mancanti
-    const keys = Object.keys(GLOBAL_CAPS);
-    const base: Caps = {};
-    for (const k of keys) base[k] = GLOBAL_CAPS[k];
-    const thCaps = CAPS_BY_TH[th] || CAPS_BY_TH[
-      [17,16,15,14,13,12,11].find(x => x <= (th||0)) || 11
-    ];
-    return { ...base, ...thCaps };
+    const fallbackTH = [17,16,15,14,13,12,11].find(x => x <= (th || 0)) || 11;
+    return { ...GLOBAL_CAPS, ...(CAPS_BY_TH[fallbackTH] || {}) };
   }
 
   function generate(text: string) {
     setError('');
     setRows([]);
     setTh(undefined);
-
     if (!text.trim()) return;
 
     let json: any;
     try { json = sanitizeToJSONObject(text); }
     catch (e: any) { setError('JSON non valido: ' + (e?.message || 'errore di parsing')); return; }
 
-    // 1) Deduci TH (se possibile)
-    const detectedTH = detectTownHall(json);
+    // 1) TH esplicito o heuristic da pets
+    let detectedTH = detectTownHallExplicit(json);
+    if (!detectedTH && hasPets(json)) detectedTH = 14;
     setTh(detectedTH);
 
-    // 2) Raccogli voci
     const entries = collectEntries(json);
     if (!entries.length) { setError('Nessun blocco riconoscibile (buildings2/traps2/units2/heroes2/pets/equipment).'); return; }
 
-    // 3) Conta totale occorrenze per ID
+    // Totali per ID
     const totalById = new Map<string, number>();
     for (const e of entries) {
       const id = String(e.data);
       totalById.set(id, (totalById.get(id) || 0) + (e.cnt || 1));
     }
 
-    // 4) Caps in funzione del TH
     const caps = getCapsForTH(detectedTH);
 
-    // 5) Genera righe solo per elementi con nome noto + cap per TH
+    // Genero righe SOLO per elementi con nome noto + cap per TH
     const map = new Map<string, Row>();
     for (const e of entries) {
       const id = String(e.data);
       const meta = ID_NAME_MAP[id];
-      if (!meta) continue; // non mappato → salto
+      if (!meta) continue;
 
       const name = meta.name;
       const max = typeof caps[name] === 'number' ? caps[name] : undefined;
       if (!max || max <= 0) continue;
 
       const have = e.lvl || 0;
-      if (!(have < max)) continue; // già al cap per il TUO TH → non mostrare
+      if (!(have < max)) continue;
 
       const key = name + '__' + have;
       const prev = map.get(key);
       const row: Row = prev || {
-        name,
-        have,
-        max,
+        name, have, max,
         countAtLevel: 0,
         totalByName: totalById.get(id) || (e.cnt || 1),
         deficit: Math.max(0, max - have),
@@ -262,8 +239,8 @@ export default function Page() {
       map.set(key, row);
     }
 
-    const arr = Array.from(map.values()).sort((a, b) => {
-      // Heroes prima, poi Pets, poi Equipment
+    // Ordine base (eroi > pets > equipment), poi deficit
+    const baseSorted = Array.from(map.values()).sort((a, b) => {
       const rank = (n: string) =>
         /king|queen|warden|champion/i.test(n) ? 3 :
         /^pet:/i.test(n) ? 2 : (n === 'Equipment' ? 1 : 0);
@@ -273,14 +250,31 @@ export default function Page() {
       return a.have - b.have;
     });
 
-    setRows(arr);
+    setRows(baseSorted);
   }
+
+  // ---- Suggerimenti FARM/WAR (su TH14) ----
+  function rankName(list: string[], n: string): number {
+    const i = list.findIndex(x => n.toLowerCase().includes(x.toLowerCase()));
+    return i === -1 ? 999 : i;
+  }
+  const farmAdvice = rows
+    .map(r => ({ r, score: rankName(FARM_PRIORITY_TH14, r.name) }))
+    .sort((a, b) => a.score - b.score || b.r.deficit - a.r.deficit)
+    .map(x => x.r)
+    .slice(0, 10);
+
+  const warAdvice = rows
+    .map(r => ({ r, score: rankName(WAR_PRIORITY_TH14, r.name) }))
+    .sort((a, b) => a.score - b.score || b.r.deficit - a.r.deficit)
+    .map(x => x.r)
+    .slice(0, 10);
 
   return (
     <div className="wrap">
-      <h1>CoC – Upgrade (cap per TH)</h1>
+      <h1>CoC – Upgrade (cap per TH) + Consigli Farm/War</h1>
       <div className="muted small" style={{marginBottom: 8}}>
-        Incolla il JSON/frammento del villaggio. L’elenco compare sotto, limitato ai max del tuo Town Hall.
+        Incolla il JSON/frammento del villaggio. Rilevo il TH (o uso TH=14 se vedo i Pets) e mostro l’elenco limitato ai cap del tuo TH.
       </div>
 
       <div className="panel">
@@ -292,7 +286,7 @@ export default function Page() {
           onChange={(e) => setPasted(e.target.value)}
         />
         <div className="thbadge">
-          {th ? <>TH rilevato: <b>{th}</b></> : <>TH sconosciuto: uso <b>max globali</b> finché non è deducibile</>}
+          {th ? <>TH rilevato: <b>{th}</b></> : <>TH non rilevato: <b>{hasPets(safeTry(() => sanitizeToJSONObject(pasted)) || {}) ? 'uso 14 (pets presenti)' : 'uso max globali'}</b></>}
         </div>
       </div>
 
@@ -301,7 +295,7 @@ export default function Page() {
       <div className="grid1" style={{ marginTop: 8 }}>
         {rows.length === 0 ? (
           <div className="muted small">
-            Nessun upgrade da mostrare con le info attuali. Se mancano Buildings/Traps, serve mappa ID→Nome.
+            Nessun upgrade da mostrare con le info attuali (per buildings/traps serve mappa ID→Nome).
           </div>
         ) : (
           rows.map((r, i) => (
@@ -313,6 +307,43 @@ export default function Page() {
           ))
         )}
       </div>
+
+      {/* Consigli */}
+      {rows.length > 0 && (
+        <>
+          <div className="panel" style={{ marginTop: 16 }}>
+            <div className="title">Consiglio FARM (TH14)</div>
+            <div className="muted small" style={{marginBottom: 8}}>
+              Priorità orientata a farming: laboratorio, CC, Pet House, equipment, campi/eserciti; poi difese utili a proteggere risorse.
+            </div>
+            {farmAdvice.length === 0 ? (
+              <div className="muted small">Nessuna raccomandazione disponibile dai dati incollati.</div>
+            ) : (
+              <ul className="list">
+                {farmAdvice.map((r, i) => (
+                  <li key={i}><b>{r.name}</b> — {r.countAtLevel}/{r.totalByName} → liv. {r.have} → {r.max} (deficit {r.deficit})</li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="panel" style={{ marginTop: 12 }}>
+            <div className="title">Consiglio WAR (TH14)</div>
+            <div className="muted small" style={{marginBottom: 8}}>
+              Priorità orientata alla guerra: Giga Inferno, Eagle, Scattershot, Inferno, Builder’s Hut, X-Bow; CC/Lab/Equipment ed eroi sempre in alto.
+            </div>
+            {warAdvice.length === 0 ? (
+              <div className="muted small">Nessuna raccomandazione disponibile dai dati incollati.</div>
+            ) : (
+              <ul className="list">
+                {warAdvice.map((r, i) => (
+                  <li key={i}><b>{r.name}</b> — {r.countAtLevel}/{r.totalByName} → liv. {r.have} → {r.max} (deficit {r.deficit})</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
 
       <style jsx global>{`
         :root { color-scheme: dark; }
@@ -329,7 +360,12 @@ export default function Page() {
         .grid1 { display:grid; gap:10px; grid-template-columns:1fr; }
         .item { display:grid; gap:8px; grid-template-columns:1fr 1fr 1fr; background:#121212; border:1px solid #242424; padding:12px; border-radius:12px; }
         .k { font-weight:600; }
+        .title { font-weight:600; margin-bottom:6px; }
+        .list { margin: 0; padding-left: 18px; line-height: 1.4; }
       `}</style>
     </div>
   );
 }
+
+// helper sicuro per leggere lo state in badge TH
+function safeTry(fn: () => any) { try { return fn(); } catch { return null; } }
