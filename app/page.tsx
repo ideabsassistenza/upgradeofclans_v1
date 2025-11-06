@@ -2,19 +2,6 @@
 
 import React, { useMemo, useState } from 'react';
 
-/**
- * CoC Upgrade Planner – Next.js (Vercel Ready)
- *
- * ✅ Carica JSON intero da file (no incolla → no blocchi)
- * ✅ Mostra SOLO ciò che va upgradato
- * ✅ Raggruppo: "Archer Towers 5/7 → liv. 17 → 20"
- * ✅ Ordinamento CONSIGLIATO: Eroi > Difese chiave > Resto (per deficit)
- * ✅ Filtri, ricerca, deficit minimo
- * ✅ Export CSV
- *
- * Non devi modificare nulla: incolla questo file, avvia, deploy.
- */
-
 type Category = 'hero' | 'defense' | 'infrastructure' | 'trap' | 'other';
 
 type NormalizedItem = {
@@ -37,10 +24,15 @@ type GroupRow = {
 };
 
 export default function Page() {
+  // ---- Stato base ----
   const [raw, setRaw] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [error, setError] = useState('');
 
+  // ---- Input da TEXTAREA ----
+  const [pasted, setPasted] = useState('');
+
+  // ---- Mappatura campi (se il JSON non è standard) ----
   const [mapping, setMapping] = useState({
     name: '',
     level: '',
@@ -49,6 +41,7 @@ export default function Page() {
     cnt: '',
   });
 
+  // ---- Filtri e ordinamento ----
   const [sortBy, setSortBy] = useState<'recommended' | 'deficit' | 'name'>('recommended');
   const [filters, setFilters] = useState({
     hero: true,
@@ -60,6 +53,37 @@ export default function Page() {
     minDeficit: 0,
   });
 
+  // ========== HANDLER: Genera Previsione (da textarea) ==========
+  function handleGenerateFromTextarea() {
+    setError('');
+    try {
+      // Tenta parse diretto
+      const text = (pasted || '').trim();
+
+      if (!text) {
+        setError('Incolla qui il JSON copiato dal gioco prima di generare.');
+        return;
+      }
+
+      // Alcuni giochi copiano con spazi/righe strane: normalizziamo min. (ma non modifichiamo il contenuto)
+      const json = JSON.parse(text);
+
+      setRaw(json);
+
+      const arr = autoExtractArray(json);
+      if (arr.length === 0) {
+        setItems([]);
+        setError('Non trovo liste di oggetti con campi livello nel JSON. Seleziona la mappatura manualmente qui sotto.');
+      } else {
+        setItems(arr);
+        setupMappingOptions(arr[0]);
+      }
+    } catch (e: any) {
+      setError('JSON non valido: ' + e.message);
+    }
+  }
+
+  // ========== (Opzionale) Caricamento da file resta disponibile ==========
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     setError('');
     const f = e.target.files?.[0];
@@ -72,7 +96,7 @@ export default function Page() {
         const pre = autoExtractArray(json);
         if (pre.length === 0) {
           setItems([]);
-          setError('Non trovo liste di oggetti con campi livello nel JSON. Seleziona la mappatura manualmente.');
+          setError('Non trovo liste di oggetti con campi livello nel JSON. Seleziona la mappatura manualmente qui sotto.');
         } else {
           setItems(pre);
           setupMappingOptions(pre[0]);
@@ -84,7 +108,7 @@ export default function Page() {
     reader.readAsText(f);
   }
 
-  // ---------- Parsing ----------
+  // ========== Parsing & Mappatura ==========
   function autoExtractArray(json: any): any[] {
     const results: any[] = [];
     function scan(node: any) {
@@ -126,7 +150,7 @@ export default function Page() {
     setMapping({ name, level, max, cat, cnt });
   }
 
-  // ---------- Normalizzazione ----------
+  // ========== Normalizzazione ==========
   function inferCategory(name: string): Category {
     const n = (name || '').toLowerCase();
     if (/(king|queen|warden|champion)/.test(n)) return 'hero';
@@ -176,7 +200,7 @@ export default function Page() {
 
   const needUpgrades = useMemo(() => normalized.filter((i) => i.level < i.maxLevel), [normalized]);
 
-  // ---------- Priorità ----------
+  // ========== Priorità ==========
   const DEFENSE_PRIORITY = useMemo(
     () => [
       'eagle artillery',
@@ -222,7 +246,7 @@ export default function Page() {
     return base * 100 + byName * 10 + deficit;
   }
 
-  // ---------- Raggruppo + filtri + ordinamento ----------
+  // ========== Raggruppo + filtri + ordinamento ==========
   const grouped: GroupRow[] = useMemo(() => {
     const key = (i: NormalizedItem) => `${i.name}__${i.level}`;
     const g = new Map<string, GroupRow>();
@@ -278,7 +302,7 @@ export default function Page() {
     return arr;
   }, [needUpgrades, totalsByName, sortBy, filters]);
 
-  // ---------- Export ----------
+  // ========== Export ==========
   function downloadCSV() {
     const header = [
       'name',
@@ -315,13 +339,30 @@ export default function Page() {
       <div className="toprow">
         <h1>CoC Upgrade Planner</h1>
         <div className="row">
+          {/* Opzione file (rimane, ma non obbligatoria) */}
           <label className="btn">
             <input type="file" accept="application/json" onChange={onFile} style={{ display: 'none' }} />
-            Carica JSON
+            Carica JSON (file)
           </label>
           <button className="btn" onClick={downloadCSV} disabled={grouped.length === 0}>
             Esporta CSV
           </button>
+        </div>
+      </div>
+
+      {/* Input incolla testo */}
+      <div className="panel">
+        <div className="paneltitle" style={{ marginBottom: 8 }}>Incolla il JSON dal gioco</div>
+        <textarea
+          className="input"
+          rows={10}
+          placeholder='Incolla qui il testo JSON copiato dal gioco (deve iniziare con { o [ )'
+          value={pasted}
+          onChange={(e) => setPasted(e.target.value)}
+        />
+        <div className="row" style={{ marginTop: 8 }}>
+          <button className="btn" onClick={handleGenerateFromTextarea}>Genera Previsione</button>
+          <span className="muted small">Il testo resta solo nel browser (nessun upload).</span>
         </div>
       </div>
 
@@ -391,7 +432,7 @@ export default function Page() {
 
       <div className="grid1" id="list">
         {grouped.length === 0 ? (
-          <div className="muted small">{raw ? 'Nessun upgrade da mostrare oppure mappatura non corretta.' : 'Carica il JSON per vedere la lista.'}</div>
+          <div className="muted small">{raw ? 'Nessun upgrade da mostrare oppure mappatura non corretta.' : 'Incolla il JSON e premi “Genera Previsione”.'}</div>
         ) : (
           grouped.map((g, idx) => (
             <div key={idx} className="item">
@@ -406,7 +447,7 @@ export default function Page() {
         )}
       </div>
 
-      {/* Stili minimi in-page per non toccare globals.css */}
+      {/* Stili minimi inline per evitare tocchi a globals.css */}
       <style jsx global>{`
         :root { color-scheme: dark; }
         body { background:#0a0a0a; color:#e5e5e5; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
@@ -426,6 +467,7 @@ export default function Page() {
         .grid5 { display:grid; gap:10px; grid-template-columns:1fr; }
         @media (min-width:880px){ .grid3{ grid-template-columns:1fr 1fr 1fr; } .grid5{ grid-template-columns:repeat(5,1fr);} }
         .input { width:100%; background:#0a0a0a; border:1px solid #2c2c2c; border-radius:8px; padding:8px; color:#e5e5e5; }
+        textarea.input { min-height: 220px; line-height: 1.3; }
         .item { display:grid; gap:8px; grid-template-columns:1fr 1fr 1fr; background:#121212; border:1px solid #242424; padding:12px; border-radius:12px; }
         .k { font-weight:600; }
         .err { color:#fca5a5; }
@@ -451,7 +493,7 @@ function Btn({ active, onClick, children }: { active?: boolean; onClick: () => v
 function Chk({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 }}>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked))} />
       <span>{label}</span>
     </label>
   );
