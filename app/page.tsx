@@ -493,7 +493,7 @@ function Btn({ active, onClick, children }: { active?: boolean; onClick: () => v
 function Chk({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13 }}>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked))} />
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span>{label}</span>
     </label>
   );
