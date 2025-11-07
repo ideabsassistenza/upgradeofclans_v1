@@ -5,6 +5,7 @@ html, body {
   color: #e5e5e5;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
+
 * {
   box-sizing: border-box;
 }

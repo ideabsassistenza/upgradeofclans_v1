@@ -2,12 +2,10 @@
   "name": "upgradeofclans",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint || echo \"no lint\""
+    "start": "next start"
   },
   "dependencies": {
     "next": "14.2.5",
