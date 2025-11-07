@@ -3,13 +3,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 /**
- * CoC Upgrade Planner – COMPLETO (TH10→TH17, tutte le strutture)
+ * CoC Upgrade Planner – COMPLETO (TH10→TH17, tutte le strutture, NO equip)
  * - Incolli export JSON (anche frammenti: heroes2, buildings2, traps2, pets)
- * - Rileva TH (esplicito → arma TH → fallback pets=14)
- * - Nessun equip Eroe (esplicitamente escluso)
+ * - Rileva TH con priorità:
+ *    1) campi espliciti (townHallLevel/th/thLevel)
+ *    2) livello del Municipio nei buildings (data=1000001)
+ *    3) “weapon” sul TH nei buildings
+ *    4) fallback: se ci sono pets ⇒ TH14
  * - Nomi ITA + CAP completi per Eroi, Pets, Difese, Strutture, Trappole
- * - Pulsanti WAR / FARM che riordinano le priorità
+ * - Pulsanti WAR / FARM per ordinare le priorità
  * - Mostra solo ciò che è upgradabile al TH corrente (cap>0 e lvl<cap)
+ * - Nessun equipaggiamento Eroe gestito (richiesta esplicita)
  */
 
 function tryParse<T = any>(s: string): T { return JSON.parse(s); }
@@ -45,29 +49,52 @@ function deepFindNumber(obj: any, keys: string[]): number | undefined {
   return undefined;
 }
 
-function detectTownHall(json: any): number | undefined {
+/** Rilevazione TH con sorgente per badge (explicit|townhall|weapon|pets|unknown) */
+function detectTownHall(json: any): { th?: number; source: 'explicit'|'townhall'|'weapon'|'pets'|'unknown' } {
+  // 1) campi espliciti
   const explicit = deepFindNumber(json, ['townHallLevel', 'town_hall', 'th', 'thLevel']);
-  if (typeof explicit === 'number' && explicit >= 1 && explicit <= 20) return explicit;
+  if (typeof explicit === 'number' && explicit >= 1 && explicit <= 20) {
+    return { th: explicit, source: 'explicit' };
+  }
 
-  // prova a dedurre dal "weapon" del TH nei buildings
-  const scan = (arr: any[]) => {
+  // 2) leggere il TH dal Municipio nei buildings/buildings2 (data=1000001)
+  const scanTHFromTownHall = (arr: any[]) => {
     for (const it of arr) {
-      if (it && typeof it === 'object' && ('weapon' in it) && typeof it.lvl === 'number') {
-        const th = Number(it.lvl);
+      if (it && typeof it === 'object' && Number((it as any).data) === 1000001 && typeof (it as any).lvl === 'number') {
+        const th = Number((it as any).lvl);
         if (th >= 1 && th <= 20) return th;
       }
     }
     return undefined;
   };
-  const thFromBuildings =
-    (Array.isArray(json?.buildings) && scan(json.buildings)) ||
-    (Array.isArray(json?.buildings2) && scan(json.buildings2));
-  if (thFromBuildings) return thFromBuildings;
+  if (Array.isArray(json?.buildings)) {
+    const th = scanTHFromTownHall(json.buildings);
+    if (th) return { th, source: 'townhall' };
+  }
+  if (Array.isArray(json?.buildings2)) {
+    const th = scanTHFromTownHall(json.buildings2);
+    if (th) return { th, source: 'townhall' };
+  }
 
-  // fallback comune: se ci sono i pets → almeno TH14
-  if (Array.isArray(json?.pets) && json.pets.length > 0) return 14;
+  // 3) alcuni export mettono "weapon" sull'entry del TH: usalo se presente
+  const scanWeapon = (arr: any[]) => {
+    for (const it of arr) {
+      if (it && typeof it === 'object' && ('weapon' in it) && typeof (it as any).lvl === 'number') {
+        const th = Number((it as any).lvl);
+        if (th >= 1 && th <= 20) return th;
+      }
+    }
+    return undefined;
+  };
+  const thFromWeapon =
+    (Array.isArray(json?.buildings) && scanWeapon(json.buildings)) ||
+    (Array.isArray(json?.buildings2) && scanWeapon(json.buildings2));
+  if (thFromWeapon) return { th: thFromWeapon, source: 'weapon' };
 
-  return undefined;
+  // 4) fallback: presenza pets → TH14
+  if (Array.isArray(json?.pets) && json.pets.length > 0) return { th: 14, source: 'pets' };
+
+  return { th: undefined, source: 'unknown' };
 }
 
 /** ID → Nome ITA + categoria (NO equip) – include strutture TH15–17 */
@@ -126,11 +153,8 @@ const ID_NAME_MAP: Record<string, { name: string; cat: 'hero'|'pet'|'building'|'
   '1000089': { name: 'Sputafuoco', cat: 'building' },              // TH16+
 };
 
+/** CAPS completi per TH10..TH17 – TUTTE le strutture richieste (cap=0 → non disponibile al TH) */
 type Caps = Record<string, number>;
-
-/** CAPS completi per TH10..TH17 – TUTTE le strutture richieste.
- *  Nota: cap=0 → non disponibile a quel TH (filtrato automaticamente).
- */
 const CAPS: Record<number, Caps> = {
   10: {
     'Re Barbaro': 40, 'Regina degli Arcieri': 40, 'Gran Sorvegliante': 0, 'Campionessa Reale': 0,
@@ -313,6 +337,7 @@ export default function Page() {
   const [missingCaps, setMissingCaps] = useState<{ name: string; have: number; count: number }[]>([]);
   const [error, setError] = useState('');
   const [th, setTh] = useState<number | undefined>(undefined);
+  const [thSource, setThSource] = useState<'explicit'|'townhall'|'weapon'|'pets'|'unknown'>('unknown');
   const [mode, setMode] = useState<'FARM'|'WAR'>('FARM');
 
   const timer = useRef<any>(null);
@@ -324,14 +349,15 @@ export default function Page() {
 
   function generate(text: string) {
     setError(''); setRows([]); setMissingCaps([]); setTh(undefined);
+
     if (!text.trim()) return;
 
     let json: any;
     try { json = sanitizeToJSONObject(text); }
     catch (e: any) { setError('JSON non valido: ' + (e?.message || 'errore di parsing')); return; }
 
-    const detectedTH = detectTownHall(json);
-    setTh(detectedTH);
+    const { th: detectedTH, source } = detectTownHall(json);
+    setTh(detectedTH); setThSource(source);
 
     const entries = collectEntries(json);
     if (!entries.length) { setRows([]); return; }
@@ -359,7 +385,8 @@ export default function Page() {
       const tot = totalById.get(id) || count;
 
       const max = typeof capsForTH[name] === 'number' ? capsForTH[name] : undefined;
-      if (typeof max !== 'number') { // con questa tabella dovrebbe capitare raramente
+      if (typeof max !== 'number') {
+        // riconosciuto ma manca cap per questo TH → diagnostica (dovrebbe capitare raramente)
         missing.push({ name, have, count });
         continue;
       }
@@ -399,9 +426,14 @@ export default function Page() {
     setMissingCaps(Array.from(agg.values()).sort((a, b) => a.name.localeCompare(b.name, 'it')));
   }
 
+  const sourceColor =
+    thSource === 'explicit' || thSource === 'townhall' ? '#22c55e' :
+    thSource === 'weapon' ? '#f59e0b' :
+    thSource === 'pets' ? '#fb923c' : '#9ca3af';
+
   return (
     <div className="wrap">
-      <h1>CoC – Piano di Upgrade (TH{th ?? '??'})</h1>
+      <h1>CoC – Piano di Upgrade {th ? `(TH${th})` : ''}</h1>
       <div className="muted small" style={{marginBottom: 8}}>
         Incolla l’export. Scegli il profilo. Vedi solo ciò che puoi ancora upgradare per il tuo TH.
       </div>
@@ -415,8 +447,13 @@ export default function Page() {
           onChange={(e) => setPasted(e.target.value)}
         />
         <div className="row" style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:8}}>
-          <div className="thbadge">
-            {th ? <>TH rilevato: <b>{th}</b></> : <>TH non rilevato (uso cap generici finché non è deducibile)</>}
+          <div className="thbadge" style={{display:'flex', alignItems:'center', gap:8}}>
+            <span style={{
+              display:'inline-block', width:10, height:10, borderRadius:9999, background: sourceColor
+            }} />
+            {th
+              ? <>TH rilevato: <b>{th}</b> <span className="small muted">({thSource})</span></>
+              : <>TH non rilevato</>}
           </div>
           <div className="seg">
             <button className={mode==='FARM'?'segbtn active':'segbtn'} onClick={()=>setMode('FARM')}>FARM</button>
@@ -427,7 +464,8 @@ export default function Page() {
 
       <div className="panel" style={{ marginTop: 12 }}>
         <div className="title">Piano {mode}</div>
-        {rows.length === 0 ? (
+        {error && <div style={{color:'#f87171', marginBottom:8}}>{error}</div>}
+        {rows.length === 0 && !error ? (
           <div className="muted small">Nessun upgrade da mostrare con i cap attuali.</div>
         ) : (
           <ul className="list">
