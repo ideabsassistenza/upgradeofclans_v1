@@ -280,61 +280,47 @@ const CAPS: Record<number, Caps> = {
    LOGICHE PRO – PRIORITÀ
    ====================== */
 
-/** FARM – principi pro:
- * 1) Risorse (miniere/estrattori/depositi) per massimizzare produzione/capienza
- * 2) Laboratorio SEMPRE attivo; poi accampamenti/caserme per ciclo raid più rapido
- * 3) Castello del Clan (stoccaggio e donazioni)
- * 4) Muri per non tenere costruttori fermi
- * 5) Difese che proteggono risorse (torri stregone, torre bombe, tesla) poi resto
- */
 const FARM_ORDER = [
-  // risorse prima
   "Miniera d'Oro","Estrattore d'Elisir","Trivella d'Elisir Nero",
   "Deposito d'Oro","Deposito d'Elisir","Deposito d'Elisir Nero",
-  // ciclo raid sempre attivo
   'Laboratorio','Campo d’Addestramento','Caserma','Caserma Nera',
-  // capacità offensiva/gestione risorse
   'Castello del Clan','Casa degli Animali','Fucina',
-  // muri per non lasciare builder idle
   'Muro',
-  // difese che proteggono le risorse
   'Torre dello Stregone','Torre delle Bombe','Tesla Nascosta',
-  // resto difese
   'Balestra','Difesa Aerea','Torre degli Arcieri','Cannone','Mortaio','Spingiaria Aerea',
-  // municipio e strutture avanzate (quando disponibili)
   'Artiglieria Aquila','Lanciascaglie','Torre Infernale','Torre degli Incantesimi','Monolite',
   'Torre Multi-Arceri','Cannone Rimbalzo','Torre Multi-Ingranaggi','Sputafuoco','Capanna del Costruttore',
   'Municipio'
 ];
 
-/** WAR – principi pro:
- * 1) Laboratorio + fabbriche (spell e dark spell) prima di tutto
- * 2) Accampamenti + Castello del Clan
- * 3) Eroi (punti soglia chiave vengono raggiunti durante la progressione)
- * 4) Strutture non difensive prima (per limitare war weight/ottimizzare attacco)
- * 5) Difese “pesanti” in ordine: Aquila, Lanciascaglie, Infernali, Balestra, Tesla, Spell Tower, Monolite
- * 6) Trappole e resto difese
- */
 const WAR_ORDER = [
-  // potenziamento attacco
+  // 0) potenza d’attacco (resta in alto, ma NON fa salire risorse)
   'Laboratorio','Fabbrica degli Incantesimi','Fabbrica degli Incantesimi Oscuri',
   'Campo d’Addestramento','Castello del Clan',
-  // eroi
   'Re Barbaro','Regina degli Arcieri','Gran Sorvegliante','Campionessa Reale','Casa degli Animali',
-  // strutture non difensive (non pesano o pesano poco)
-  'Caserma','Caserma Nera',"Miniera d'Oro","Estrattore d'Elisir","Trivella d'Elisir Nero",
-  "Deposito d'Oro","Deposito d'Elisir","Deposito d'Elisir Nero",'Fucina','Officina d’Assedio',
-  // difese pesanti/critiche in war
-  'Artiglieria Aquila','Lanciascaglie','Torre Infernale','Balestra','Tesla Nascosta','Torre degli Incantesimi','Monolite',
-  // difese rimanenti
-  'Difesa Aerea','Torre dello Stregone','Torre delle Bombe','Torre Multi-Arceri','Cannone Rimbalzo','Torre Multi-Ingranaggi','Sputafuoco',
-  'Spingiaria Aerea','Mortaio','Torre degli Arcieri','Cannone',
-  // trappole
-  'Trappola Tornado','Mina Aerea a Ricerca','Bomba Gigante','Bomba Aerea','Trappola Scheletrica','Trappola a Molla','Bomba','Giga Bomba',
-  // municipio e capanna (upgrade difensivo)
-  'Capanna del Costruttore','Municipio'
-];
 
+  // 1) DIFESE (prima tutte le difese, dalle più impattanti alle minori)
+  'Artiglieria Aquila','Lanciascaglie','Torre Infernale','Balestra',
+  'Torre degli Incantesimi','Monolite','Tesla Nascosta',
+  'Difesa Aerea','Torre dello Stregone','Torre delle Bombe',
+  'Torre Multi-Arceri','Cannone Rimbalzo','Torre Multi-Ingranaggi','Sputafuoco',
+  'Spingiaria Aerea','Mortaio','Torre degli Arcieri','Cannone',
+  'Capanna del Costruttore', // (difensiva dal TH14)
+
+  // 2) TRAPPOLE (prima Tornado e anti-aeree, poi il resto)
+  'Trappola Tornado','Mina Aerea a Ricerca','Bomba Gigante','Bomba Aerea',
+  'Trappola Scheletrica','Trappola a Molla','Bomba','Giga Bomba',
+
+  // 3) STRUTTURE NON DIFENSIVE (war-weight basso) e SUPPORTO
+  'Officina d’Assedio','Fucina','Caserma','Caserma Nera',
+
+  // 4) RISORSE (sempre dopo difese/trappole in WAR)
+  "Miniera d'Oro","Estrattore d'Elisir","Trivella d'Elisir Nero",
+  "Deposito d'Oro","Deposito d'Elisir","Deposito d'Elisir Nero",
+
+  // 5) MUNICIPIO (chiude la lista)
+  'Municipio'
+];
 type Row = { name: string; have: number; max: number };
 
 function formatRow(r: Row) {
@@ -360,12 +346,10 @@ function buildAdvice(rows: Row[], _th: number|undefined, mode: 'FARM'|'WAR'): st
     return false;
   };
 
-  // 1) segui la priorità pro
   for (const key of want) {
     if (pushMatching(key)) return tips;
   }
 
-  // 2) fallback: i più “indietro” (gap più grande)
   const byGap = [...rows].sort((a,b)=> (b.max-b.have) - (a.max-a.have));
   for (const r of byGap) {
     const line = formatRow(r);
@@ -423,7 +407,6 @@ export default function Page() {
       }
     }
 
-    // Ordinamento elenco coerente col profilo
     const order = mode === 'WAR' ? WAR_ORDER : FARM_ORDER;
     const rank = (n: string) => {
       const i = order.findIndex(x => n.toLowerCase().includes(x.toLowerCase()));
@@ -468,9 +451,32 @@ export default function Page() {
       <div style={{marginTop:12, background:'#101010', border:'1px solid #222', borderRadius:12, padding:12}}>
         <div style={{fontWeight:700, marginBottom:8}}>Consigli automatici – {mode}</div>
         {advice.length ? (
-          <ol style={{margin:0, paddingLeft:18, lineHeight:1.5}}>
-            {advice.map((t,i)=>(<li key={i}>{t}</li>))}
-          </ol>
+          <>
+            <ol style={{margin:0, paddingLeft:18, lineHeight:1.5}}>
+              {advice.map((t,i)=>(<li key={i}>{t}</li>))}
+            </ol>
+
+            {/* Nota esplicativa dinamica FARM/WAR */}
+            <div style={{marginTop:10, padding:'10px 12px', border:'1px dashed #333', borderRadius:10, color:'#cbd5e1', background:'#0b0b0b'}}>
+              {mode === 'FARM' ? (
+                <ul style={{margin:0, paddingLeft:18}}>
+                  <li><b>Risorse prima</b>: miniere/estrattori/depositi per massimizzare produzione e capienza.</li>
+                  <li><b>Laboratorio sempre attivo</b>: priorità alle truppe da farming per aumentare il loot per attacco.</li>
+                  <li><b>Ciclo raid più veloce</b>: accampamenti, caserme e castello anticipati.</li>
+                  <li><b>Builder sempre occupati</b>: investi eccedenze sui <i>muri</i> tra un upgrade e l’altro.</li>
+                  <li><b>Difese pro-risorse</b>: torri mago / torre bombe / tesla prima del resto.</li>
+                </ul>
+              ) : (
+                <ul style={{margin:0, paddingLeft:18}}>
+                  <li><b>Potenza d’attacco</b>: <i>Laboratorio</i> e <i>fabbriche</i> (spell/dark spell) sono prioritarie.</li>
+                  <li><b>Capacità esercito</b>: accampamenti e <i>Castello del Clan</i> subito.</li>
+                  <li><b>Eroi</b>: portali ai livelli chiave per sbloccare abilità cruciali.</li>
+                  <li><b>War weight</b>: prima strutture non difensive, poi difese pesanti in ordine (Aquila, Infernali, Balestra, Tesla, Spell Tower, Monolite).</li>
+                  <li><b>Trappole</b>: migliora Tornado, mine a ricerca e bombe in base al meta.</li>
+                </ul>
+              )}
+            </div>
+          </>
         ) : (
           <div style={{color:'#9ca3af'}}>Nessun consiglio disponibile (nessun upgrade rilevato).</div>
         )}
