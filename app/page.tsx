@@ -4,14 +4,13 @@ import React, { useEffect, useRef, useState } from 'react';
 
 /**
  * Upgrade Planner – Villaggio Principale (TH10→TH17)
- * ✔ JSON incollato (anche frammenti heroes2/buildings2/traps2/…)
- * ✔ Rilevamento TH: esplicito → Municipio (data=1000001) → weapon → fallback pets=14
- * ✔ ESCLUDE completamente:
- *    – Equipaggiamenti degli eroi
- *    – Base del Costruttore (builder base) e relative voci
- * ✔ Copertura larga ID → Nomi ITA (Eroi, Pet, Difese, Trappole, Risorse, Armata)
- * ✔ Caps per TH10..TH17 per tutte le voci principali del Villaggio Principale
- * ✔ Profili FARM / WAR per ordinamento
+ * - JSON incollato (anche frammenti)
+ * - ESCLUDE: equipaggiamenti eroi + Base del Costruttore
+ * - Copre eroi, pet, difese, trappole, risorse, armata, municipio
+ * - Caps per TH10..TH17 (principali)
+ * - Modalità FARM / WAR (impatta ordinamento + consigli) secondo linee guida PRO
+ * - Nessun raggruppamento: ogni entry rimane singola
+ * - Consigli automatici: top 10 suggerimenti in base al profilo
  */
 
 function tolerantParse(raw: string): any {
@@ -48,7 +47,7 @@ function deepFindNumber(obj: any, keys: string[]): number | undefined {
   return undefined;
 }
 
-/** TH detection: explicit → TownHall entry (data=1000001) → weapon on TH → pets fallback */
+/** TH detection: explicit → TownHall entry (data=1000001) → weapon → pets fallback */
 function detectTH(json: any): number | undefined {
   const explicit = deepFindNumber(json, ['townHallLevel', 'th', 'thLevel', 'town_hall']);
   if (explicit && explicit >= 1 && explicit <= 20) return explicit;
@@ -82,11 +81,8 @@ function detectTH(json: any): number | undefined {
 }
 
 /** Filtri esclusione (equip eroi, builder base) */
-function isBuilderBaseId(id: number): boolean {
-  // Builder Base ID tendono a vivere in namespace separati (non affidabile al 100%),
-  // ma il nostro input tipico (heroes2/buildings2/…) è del Villaggio Principale.
-  // Se arrivano voci esplicite di builder base, scartale qui aggiungendo i loro id.
-  // Per sicurezza, escludiamo categorie non presenti nel nostro IDMAP (default).
+function isBuilderBaseId(_id: number): boolean {
+  // Se dovessero arrivare id della Builder Base, filtrarli qui (per ora none).
   return false;
 }
 
@@ -141,7 +137,7 @@ const IDMAP: Record<number, Meta> = {
   12000006: { name: 'Mina Aerea a Ricerca', cat: 'trap' },
   12000008: { name: 'Trappola Scheletrica', cat: 'trap' },
   12000016: { name: 'Trappola Tornado', cat: 'trap' },
-  12000020: { name: 'Giga Bomba', cat: 'trap' }, // parte del TH 17
+  12000020: { name: 'Giga Bomba', cat: 'trap' },
 
   // --- RISORSE ---
   1000002: { name: "Estrattore d'Elisir", cat: 'resource' },
@@ -151,7 +147,7 @@ const IDMAP: Record<number, Meta> = {
   1000023: { name: "Trivella d'Elisir Nero", cat: 'resource' },
   1000024: { name: "Deposito d'Elisir Nero", cat: 'resource' },
 
-  // --- ARMATA / LAB / CLAN / OFFICINA / PET HOUSE / FUCINA ---
+  // --- ARMATA / LAB / CLAN / OFFICINA / PET HOUSE / FUCINA / CAPANNA ---
   1000000: { name: 'Campo d’Addestramento', cat: 'army' },
   1000006: { name: 'Caserma', cat: 'army' },
   1000026: { name: 'Caserma Nera', cat: 'army' },
@@ -160,114 +156,94 @@ const IDMAP: Record<number, Meta> = {
   1000029: { name: 'Fabbrica degli Incantesimi Oscuri', cat: 'army' },
   1000014: { name: 'Castello del Clan', cat: 'army' },
   1000059: { name: 'Officina d’Assedio', cat: 'army' },
-  1000068: { name: 'Casa degli Animali', cat: 'army' }, // pet house
+  1000068: { name: 'Casa degli Animali', cat: 'army' },
   1000070: { name: 'Fucina', cat: 'army' },
-  1000040: { name: 'Accampamento 5° Slot (se presente)', cat: 'army' }, // placeholder se appare nei dump
+  1000015: { name: 'Capanna del Costruttore', cat: 'defense' }, // arma difensiva dal TH14
 };
 
 /** CAPS – livelli massimi per TH10..TH17 (Villaggio Principale) */
 type Caps = Record<string, number>;
 const CAPS: Record<number, Caps> = {
-  // TH10
   10: {
-    // Eroi
     'Re Barbaro': 40, 'Regina degli Arcieri': 40, 'Gran Sorvegliante': 0, 'Campionessa Reale': 0,
-    // Difese
     'Cannone': 13, 'Torre degli Arcieri': 13, 'Muro': 11, 'Mortaio': 8, 'Torre dello Stregone': 9,
     'Difesa Aerea': 8, 'Tesla Nascosta': 8, 'Balestra': 4, 'Torre Infernale': 3, 'Spingiaria Aerea': 5,
     'Torre delle Bombe': 5, 'Artiglieria Aquila': 0, 'Lanciascaglie': 0, 'Torre degli Incantesimi': 0,
     'Monolite': 0, 'Torre Multi-Arceri': 0, 'Cannone Rimbalzo': 0, 'Torre Multi-Ingranaggi': 0, 'Sputafuoco': 0,
-    // Trappole
     'Bomba': 7, 'Trappola a Molla': 5, 'Bomba Gigante': 4, 'Bomba Aerea': 4, 'Mina Aerea a Ricerca': 3,
     'Trappola Scheletrica': 4, 'Trappola Tornado': 0, 'Giga Bomba': 0,
-    // Risorse
     "Miniera d'Oro": 13, "Deposito d'Oro": 11, "Estrattore d'Elisir": 13, "Deposito d'Elisir": 11,
     "Trivella d'Elisir Nero": 6, "Deposito d'Elisir Nero": 6,
-    // Armata
     'Campo d’Addestramento': 8, 'Caserma': 12, 'Caserma Nera': 8, 'Laboratorio': 8,
     'Fabbrica degli Incantesimi': 5, 'Fabbrica degli Incantesimi Oscuri': 4, 'Castello del Clan': 6,
-    'Officina d’Assedio': 2, 'Casa degli Animali': 0, 'Fucina': 0,
-    // Municipio (giga)
-    'Municipio (Giga)': 0
+    'Officina d’Assedio': 2, 'Casa degli Animali': 0, 'Fucina': 0, 'Capanna del Costruttore': 0, 'Municipio (Giga)': 0
   },
-  // TH11
   11: {
     'Re Barbaro': 50, 'Regina degli Arcieri': 50, 'Gran Sorvegliante': 20, 'Campionessa Reale': 0,
     'Cannone': 15, 'Torre degli Arcieri': 15, 'Muro': 12, 'Mortaio': 11, 'Torre dello Stregone': 10,
     'Difesa Aerea': 9, 'Tesla Nascosta': 9, 'Balestra': 5, 'Torre Infernale': 5, 'Spingiaria Aerea': 6,
-    'Torre delle Bombe': 6, 'Artiglieria Aquila': 2, 'Lanciascaglie': 0, 'Torre degli Incantesimi': 0,
-    'Monolite': 0, 'Torre Multi-Arceri': 0, 'Cannone Rimbalzo': 0, 'Torre Multi-Ingranaggi': 0, 'Sputafuoco': 0,
+    'Torre delle Bombe': 6, 'Artiglieria Aquila': 2,
     'Bomba': 8, 'Trappola a Molla': 6, 'Bomba Gigante': 5, 'Bomba Aerea': 5, 'Mina Aerea a Ricerca': 3,
     'Trappola Scheletrica': 4, 'Trappola Tornado': 2, 'Giga Bomba': 0,
     "Miniera d'Oro": 14, "Deposito d'Oro": 12, "Estrattore d'Elisir": 14, "Deposito d'Elisir": 12,
     "Trivella d'Elisir Nero": 7, "Deposito d'Elisir Nero": 7,
     'Campo d’Addestramento': 8, 'Caserma': 13, 'Caserma Nera': 9, 'Laboratorio': 9,
     'Fabbrica degli Incantesimi': 6, 'Fabbrica degli Incantesimi Oscuri': 5, 'Castello del Clan': 7,
-    'Officina d’Assedio': 3, 'Casa degli Animali': 0, 'Fucina': 0, 'Municipio (Giga)': 0
+    'Officina d’Assedio': 3, 'Casa degli Animali': 0, 'Fucina': 0, 'Capanna del Costruttore': 0, 'Municipio (Giga)': 0
   },
-  // TH12
   12: {
     'Re Barbaro': 65, 'Regina degli Arcieri': 65, 'Gran Sorvegliante': 40, 'Campionessa Reale': 0,
     'Cannone': 17, 'Torre degli Arcieri': 17, 'Muro': 14, 'Mortaio': 12, 'Torre dello Stregone': 11,
     'Difesa Aerea': 10, 'Tesla Nascosta': 10, 'Balestra': 6, 'Torre Infernale': 6, 'Spingiaria Aerea': 7,
-    'Torre delle Bombe': 7, 'Artiglieria Aquila': 3, 'Lanciascaglie': 0, 'Torre degli Incantesimi': 0,
-    'Monolite': 0, 'Torre Multi-Arceri': 0, 'Cannone Rimbalzo': 0, 'Torre Multi-Ingranaggi': 0, 'Sputafuoco': 0,
+    'Torre delle Bombe': 7, 'Artiglieria Aquila': 3,
     'Bomba': 8, 'Trappola a Molla': 7, 'Bomba Gigante': 5, 'Bomba Aerea': 6, 'Mina Aerea a Ricerca': 3,
     'Trappola Scheletrica': 4, 'Trappola Tornado': 3, 'Giga Bomba': 0,
     "Miniera d'Oro": 14, "Deposito d'Oro": 13, "Estrattore d'Elisir": 14, "Deposito d'Elisir": 13,
     "Trivella d'Elisir Nero": 8, "Deposito d'Elisir Nero": 8,
     'Campo d’Addestramento': 8, 'Caserma': 14, 'Caserma Nera': 10, 'Laboratorio': 10,
     'Fabbrica degli Incantesimi': 6, 'Fabbrica degli Incantesimi Oscuri': 5, 'Castello del Clan': 8,
-    'Officina d’Assedio': 4, 'Casa degli Animali': 0, 'Fucina': 0, 'Municipio (Giga)': 5
+    'Officina d’Assedio': 4, 'Casa degli Animali': 0, 'Fucina': 0, 'Capanna del Costruttore': 0, 'Municipio (Giga)': 5
   },
-  // TH13
   13: {
     'Re Barbaro': 75, 'Regina degli Arcieri': 75, 'Gran Sorvegliante': 50, 'Campionessa Reale': 25,
     'Cannone': 19, 'Torre degli Arcieri': 19, 'Muro': 14, 'Mortaio': 13, 'Torre dello Stregone': 13,
     'Difesa Aerea': 11, 'Tesla Nascosta': 12, 'Balestra': 8, 'Torre Infernale': 7, 'Spingiaria Aerea': 7,
-    'Torre delle Bombe': 8, 'Artiglieria Aquila': 4, 'Lanciascaglie': 2, 'Torre degli Incantesimi': 0,
-    'Monolite': 0, 'Torre Multi-Arceri': 0, 'Cannone Rimbalzo': 0, 'Torre Multi-Ingranaggi': 0, 'Sputafuoco': 0,
+    'Torre delle Bombe': 8, 'Artiglieria Aquila': 4, 'Lanciascaglie': 2,
     'Bomba': 9, 'Trappola a Molla': 8, 'Bomba Gigante': 7, 'Bomba Aerea': 8, 'Mina Aerea a Ricerca': 4,
     'Trappola Scheletrica': 4, 'Trappola Tornado': 3, 'Giga Bomba': 0,
     "Miniera d'Oro": 15, "Deposito d'Oro": 14, "Estrattore d'Elisir": 15, "Deposito d'Elisir": 14,
     "Trivella d'Elisir Nero": 8, "Deposito d'Elisir Nero": 8,
     'Campo d’Addestramento': 9, 'Caserma': 15, 'Caserma Nera': 11, 'Laboratorio': 11,
     'Fabbrica degli Incantesimi': 7, 'Fabbrica degli Incantesimi Oscuri': 5, 'Castello del Clan': 9,
-    'Officina d’Assedio': 5, 'Casa degli Animali': 0, 'Fucina': 0, 'Municipio (Giga)': 5
+    'Officina d’Assedio': 5, 'Casa degli Animali': 0, 'Fucina': 0, 'Capanna del Costruttore': 0, 'Municipio (Giga)': 5
   },
-  // TH14
   14: {
     'Re Barbaro': 85, 'Regina degli Arcieri': 85, 'Gran Sorvegliante': 60, 'Campionessa Reale': 30,
     'Cannone': 20, 'Torre degli Arcieri': 20, 'Muro': 15, 'Mortaio': 14, 'Torre dello Stregone': 14,
     'Difesa Aerea': 12, 'Tesla Nascosta': 13, 'Balestra': 9, 'Torre Infernale': 8, 'Spingiaria Aerea': 7,
     'Torre delle Bombe': 9, 'Artiglieria Aquila': 5, 'Lanciascaglie': 3,
-    'Torre degli Incantesimi': 0, 'Monolite': 0, 'Torre Multi-Arceri': 0, 'Cannone Rimbalzo': 0,
-    'Torre Multi-Ingranaggi': 0, 'Sputafuoco': 0,
     'Bomba': 10, 'Trappola a Molla': 9, 'Bomba Gigante': 8, 'Bomba Aerea': 9, 'Mina Aerea a Ricerca': 4,
     'Trappola Scheletrica': 4, 'Trappola Tornado': 3, 'Giga Bomba': 0,
     "Miniera d'Oro": 16, "Deposito d'Oro": 15, "Estrattore d'Elisir": 16, "Deposito d'Elisir": 15,
     "Trivella d'Elisir Nero": 9, "Deposito d'Elisir Nero": 9,
     'Campo d’Addestramento': 10, 'Caserma': 16, 'Caserma Nera': 12, 'Laboratorio': 12,
     'Fabbrica degli Incantesimi': 8, 'Fabbrica degli Incantesimi Oscuri': 6, 'Castello del Clan': 10,
-    'Officina d’Assedio': 6, 'Casa degli Animali': 4, 'Fucina': 7, 'Municipio (Giga)': 5
+    'Officina d’Assedio': 6, 'Casa degli Animali': 4, 'Fucina': 7, 'Capanna del Costruttore': 4, 'Municipio (Giga)': 5
   },
-  // TH15
   15: {
     'Re Barbaro': 90, 'Regina degli Arcieri': 90, 'Gran Sorvegliante': 65, 'Campionessa Reale': 40,
     'Cannone': 21, 'Torre degli Arcieri': 21, 'Muro': 16, 'Mortaio': 15, 'Torre dello Stregone': 15,
     'Difesa Aerea': 13, 'Tesla Nascosta': 14, 'Balestra': 10, 'Torre Infernale': 9, 'Spingiaria Aerea': 8,
     'Torre delle Bombe': 10, 'Artiglieria Aquila': 6, 'Lanciascaglie': 4,
     'Torre degli Incantesimi': 3, 'Monolite': 2,
-    'Torre Multi-Arceri': 0, 'Cannone Rimbalzo': 0, 'Torre Multi-Ingranaggi': 0, 'Sputafuoco': 0,
     'Bomba': 11, 'Trappola a Molla': 10, 'Bomba Gigante': 9, 'Bomba Aerea': 10, 'Mina Aerea a Ricerca': 5,
     'Trappola Scheletrica': 5, 'Trappola Tornado': 4, 'Giga Bomba': 0,
     "Miniera d'Oro": 16, "Deposito d'Oro": 16, "Estrattore d'Elisir": 16, "Deposito d'Elisir": 16,
     "Trivella d'Elisir Nero": 10, "Deposito d'Elisir Nero": 10,
     'Campo d’Addestramento': 12, 'Caserma': 17, 'Caserma Nera': 12, 'Laboratorio': 13,
     'Fabbrica degli Incantesimi': 8, 'Fabbrica degli Incantesimi Oscuri': 7, 'Castello del Clan': 11,
-    'Officina d’Assedio': 7, 'Casa degli Animali': 8, 'Fucina': 8, 'Municipio (Giga)': 5
+    'Officina d’Assedio': 7, 'Casa degli Animali': 8, 'Fucina': 8, 'Capanna del Costruttore': 5, 'Municipio (Giga)': 5
   },
-  // TH16
   16: {
     'Re Barbaro': 95, 'Regina degli Arcieri': 95, 'Gran Sorvegliante': 70, 'Campionessa Reale': 45,
     'Cannone': 22, 'Torre degli Arcieri': 22, 'Muro': 17, 'Mortaio': 16, 'Torre dello Stregone': 16,
@@ -281,9 +257,8 @@ const CAPS: Record<number, Caps> = {
     "Trivella d'Elisir Nero": 10, "Deposito d'Elisir Nero": 11,
     'Campo d’Addestramento': 12, 'Caserma': 18, 'Caserma Nera': 12, 'Laboratorio': 14,
     'Fabbrica degli Incantesimi': 8, 'Fabbrica degli Incantesimi Oscuri': 7, 'Castello del Clan': 12,
-    'Officina d’Assedio': 8, 'Casa degli Animali': 10, 'Fucina': 9, 'Municipio (Giga)': 5
+    'Officina d’Assedio': 8, 'Casa degli Animali': 10, 'Fucina': 9, 'Capanna del Costruttore': 5, 'Municipio (Giga)': 5
   },
-  // TH17
   17: {
     'Re Barbaro': 100, 'Regina degli Arcieri': 100, 'Gran Sorvegliante': 75, 'Campionessa Reale': 50,
     'Cannone': 23, 'Torre degli Arcieri': 23, 'Muro': 18, 'Mortaio': 17, 'Torre dello Stregone': 17,
@@ -297,30 +272,116 @@ const CAPS: Record<number, Caps> = {
     "Trivella d'Elisir Nero": 10, "Deposito d'Elisir Nero": 12,
     'Campo d’Addestramento': 12, 'Caserma': 18, 'Caserma Nera': 12, 'Laboratorio': 15,
     'Fabbrica degli Incantesimi': 8, 'Fabbrica degli Incantesimi Oscuri': 7, 'Castello del Clan': 12,
-    'Officina d’Assedio': 8, 'Casa degli Animali': 10, 'Fucina': 10, 'Municipio (Giga)': 5
+    'Officina d’Assedio': 8, 'Casa degli Animali': 10, 'Fucina': 10, 'Capanna del Costruttore': 5, 'Municipio (Giga)': 5
   }
 };
 
-// Priorità semplici per ordinare l’elenco
+/* ======================
+   LOGICHE PRO – PRIORITÀ
+   ====================== */
+
+/** FARM – principi pro:
+ * 1) Risorse (miniere/estrattori/depositi) per massimizzare produzione/capienza
+ * 2) Laboratorio SEMPRE attivo; poi accampamenti/caserme per ciclo raid più rapido
+ * 3) Castello del Clan (stoccaggio e donazioni)
+ * 4) Muri per non tenere costruttori fermi
+ * 5) Difese che proteggono risorse (torri stregone, torre bombe, tesla) poi resto
+ */
 const FARM_ORDER = [
-  'Laboratorio','Castello del Clan','Casa degli Animali','Fucina',
-  'Re Barbaro','Regina degli Arcieri','Gran Sorvegliante','Campionessa Reale',
-  'Capanna del Costruttore','Balestra','Difesa Aerea','Torre dello Stregone','Torre delle Bombe','Tesla Nascosta',
-  'Torre degli Arcieri','Cannone','Muro','Spingiaria Aerea','Mortaio'
-];
-const WAR_ORDER = [
-  'Municipio','Artiglieria Aquila','Lanciascaglie','Torre Infernale','Balestra','Tesla Nascosta',
-  'Re Barbaro','Regina degli Arcieri','Gran Sorvegliante','Campionessa Reale',
-  'Castello del Clan','Capanna del Costruttore','Difesa Aerea','Torre dello Stregone','Muro'
+  // risorse prima
+  "Miniera d'Oro","Estrattore d'Elisir","Trivella d'Elisir Nero",
+  "Deposito d'Oro","Deposito d'Elisir","Deposito d'Elisir Nero",
+  // ciclo raid sempre attivo
+  'Laboratorio','Campo d’Addestramento','Caserma','Caserma Nera',
+  // capacità offensiva/gestione risorse
+  'Castello del Clan','Casa degli Animali','Fucina',
+  // muri per non lasciare builder idle
+  'Muro',
+  // difese che proteggono le risorse
+  'Torre dello Stregone','Torre delle Bombe','Tesla Nascosta',
+  // resto difese
+  'Balestra','Difesa Aerea','Torre degli Arcieri','Cannone','Mortaio','Spingiaria Aerea',
+  // municipio e strutture avanzate (quando disponibili)
+  'Artiglieria Aquila','Lanciascaglie','Torre Infernale','Torre degli Incantesimi','Monolite',
+  'Torre Multi-Arceri','Cannone Rimbalzo','Torre Multi-Ingranaggi','Sputafuoco','Capanna del Costruttore',
+  'Municipio'
 ];
 
-type Row = { name: string; have: number; max: number; };
+/** WAR – principi pro:
+ * 1) Laboratorio + fabbriche (spell e dark spell) prima di tutto
+ * 2) Accampamenti + Castello del Clan
+ * 3) Eroi (punti soglia chiave vengono raggiunti durante la progressione)
+ * 4) Strutture non difensive prima (per limitare war weight/ottimizzare attacco)
+ * 5) Difese “pesanti” in ordine: Aquila, Lanciascaglie, Infernali, Balestra, Tesla, Spell Tower, Monolite
+ * 6) Trappole e resto difese
+ */
+const WAR_ORDER = [
+  // potenziamento attacco
+  'Laboratorio','Fabbrica degli Incantesimi','Fabbrica degli Incantesimi Oscuri',
+  'Campo d’Addestramento','Castello del Clan',
+  // eroi
+  'Re Barbaro','Regina degli Arcieri','Gran Sorvegliante','Campionessa Reale','Casa degli Animali',
+  // strutture non difensive (non pesano o pesano poco)
+  'Caserma','Caserma Nera',"Miniera d'Oro","Estrattore d'Elisir","Trivella d'Elisir Nero",
+  "Deposito d'Oro","Deposito d'Elisir","Deposito d'Elisir Nero",'Fucina','Officina d’Assedio',
+  // difese pesanti/critiche in war
+  'Artiglieria Aquila','Lanciascaglie','Torre Infernale','Balestra','Tesla Nascosta','Torre degli Incantesimi','Monolite',
+  // difese rimanenti
+  'Difesa Aerea','Torre dello Stregone','Torre delle Bombe','Torre Multi-Arceri','Cannone Rimbalzo','Torre Multi-Ingranaggi','Sputafuoco',
+  'Spingiaria Aerea','Mortaio','Torre degli Arcieri','Cannone',
+  // trappole
+  'Trappola Tornado','Mina Aerea a Ricerca','Bomba Gigante','Bomba Aerea','Trappola Scheletrica','Trappola a Molla','Bomba','Giga Bomba',
+  // municipio e capanna (upgrade difensivo)
+  'Capanna del Costruttore','Municipio'
+];
+
+type Row = { name: string; have: number; max: number };
+
+function formatRow(r: Row) {
+  return `${r.name}: ${r.have} → ${r.max}`;
+}
+
+/** Consigli automatici: applica le priorità pro (FARM/WAR) e mostra top 10 */
+function buildAdvice(rows: Row[], _th: number|undefined, mode: 'FARM'|'WAR'): string[] {
+  if (!rows.length) return [];
+  const tips: string[] = [];
+  const want = mode === 'WAR' ? WAR_ORDER : FARM_ORDER;
+
+  const pushMatching = (needle: string) => {
+    for (const r of rows) {
+      if (r.name.toLowerCase().includes(needle.toLowerCase())) {
+        const line = formatRow(r);
+        if (!tips.includes(line)) {
+          tips.push(line);
+          if (tips.length >= 10) return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  // 1) segui la priorità pro
+  for (const key of want) {
+    if (pushMatching(key)) return tips;
+  }
+
+  // 2) fallback: i più “indietro” (gap più grande)
+  const byGap = [...rows].sort((a,b)=> (b.max-b.have) - (a.max-a.have));
+  for (const r of byGap) {
+    const line = formatRow(r);
+    if (!tips.includes(line)) tips.push(line);
+    if (tips.length >= 10) break;
+  }
+
+  return tips;
+}
 
 export default function Page() {
   const [text, setText] = useState('');
   const [mode, setMode] = useState<'FARM'|'WAR'>('FARM');
   const [th, setTH] = useState<number>();
   const [rows, setRows] = useState<Row[]>([]);
+  const [advice, setAdvice] = useState<string[]>([]);
 
   const timer = useRef<any>(null);
   useEffect(() => {
@@ -350,7 +411,6 @@ export default function Page() {
       const lvl = Number(it?.lvl ?? 0);
       if (!id || Number.isNaN(lvl)) continue;
 
-      // escludi builder base/equip (non presenti nel nostro IDMAP) → skip
       if (isBuilderBaseId(id)) continue;
 
       const meta = IDMAP[id];
@@ -363,12 +423,9 @@ export default function Page() {
       }
     }
 
+    // Ordinamento elenco coerente col profilo
     const order = mode === 'WAR' ? WAR_ORDER : FARM_ORDER;
     const rank = (n: string) => {
-      if (['Re Barbaro','Regina degli Arcieri','Gran Sorvegliante','Campionessa Reale'].includes(n)) {
-        const i = order.indexOf('Re Barbaro'); // collassa nel primo eroe
-        return i === -1 ? 50 : i;
-      }
       const i = order.findIndex(x => n.toLowerCase().includes(x.toLowerCase()));
       return i === -1 ? 999 : i;
     };
@@ -382,12 +439,15 @@ export default function Page() {
     });
 
     setRows(out);
+    setAdvice(buildAdvice(out, thv, mode));
   }
 
   return (
     <main style={{ maxWidth: 980, margin: '0 auto', padding: 20 }}>
       <h1>CoC – Piano Upgrade {th ? `(TH${th})` : ''}</h1>
-      <p style={{color:'#9ca3af', marginTop: 0}}>Incolla l’export del villaggio (HV). Equip eroi e Base del Costruttore sono esclusi.</p>
+      <p style={{color:'#9ca3af', marginTop: 0}}>
+        Incolla l’export del villaggio (HV). Equip eroi e Base del Costruttore esclusi.
+      </p>
 
       <textarea
         value={text}
@@ -404,13 +464,24 @@ export default function Page() {
         </div>
       </div>
 
+      {/* Consigli automatici */}
+      <div style={{marginTop:12, background:'#101010', border:'1px solid #222', borderRadius:12, padding:12}}>
+        <div style={{fontWeight:700, marginBottom:8}}>Consigli automatici – {mode}</div>
+        {advice.length ? (
+          <ol style={{margin:0, paddingLeft:18, lineHeight:1.5}}>
+            {advice.map((t,i)=>(<li key={i}>{t}</li>))}
+          </ol>
+        ) : (
+          <div style={{color:'#9ca3af'}}>Nessun consiglio disponibile (nessun upgrade rilevato).</div>
+        )}
+      </div>
+
+      {/* Elenco completo (senza raggruppamento) */}
       <div style={{marginTop:12, background:'#0f0f0f', border:'1px solid #222', borderRadius:12, padding:12}}>
         {rows.length ? (
           <ul style={{margin:0, paddingLeft:18, lineHeight:1.5}}>
             {rows.map((r,i)=>(
-              <li key={i}>
-                <b>{r.name}</b> — liv. {r.have} → <b>{r.max}</b>
-              </li>
+              <li key={i}><b>{r.name}</b> — liv. {r.have} → <b>{r.max}</b></li>
             ))}
           </ul>
         ) : (
