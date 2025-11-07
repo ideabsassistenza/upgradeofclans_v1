@@ -1,5 +1,5 @@
-// PostCSS minimale senza Tailwind.
-// Questo impedisce a Next di tentare di caricare "@tailwindcss/postcss".
+// Configurazione PostCSS minima e universale.
+// Elimina ogni riferimento a Tailwind o plugin inesistenti.
 module.exports = {
   plugins: {
     autoprefixer: {}
