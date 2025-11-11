@@ -8,8 +8,8 @@ import React, { useEffect, useRef, useState } from 'react';
  * - ESCLUDE: equipaggiamenti eroi + Base del Costruttore
  * - Nomi ITA (eroi, difese, trappole, risorse, armata, municipio)
  * - CAPS (livelli massimi) per TH10..TH17 INTEGRATI
- * - COUNTS predisposto (quantità per TH) – ora USATO in UI se presente
- * - Modalità FARM / WAR (priorità pro aggiornate – in WAR prima difese/trappole)
+ * - COUNTS predisposto (quantità per TH) – usato se valorizzato
+ * - Modalità FARM / WAR (priorità pro – in WAR difese/trappole prima)
  * - Nessun raggruppamento in lista, consigli automatici (top 10)
  * - UI dark pulita senza dipendenze esterne
  */
@@ -81,7 +81,7 @@ function detectTH(json: any): number | undefined {
   const thFromWeapon = scanWeapon(json.buildings) ?? scanWeapon(json.buildings2);
   if (thFromWeapon) return thFromWeapon;
 
-  if (Array.isArray(json.pets) && json.pets.length) return 14; // fallback
+  if (Array.isArray(json.pets) && json.pets.length) return 14; // fallback grezzo
   return undefined;
 }
 
@@ -183,8 +183,7 @@ const CAPS: Record<number, Caps> = {
 };
 
 /* ========================
-   COUNTS (quantità previste) – opzionale ma ora usato in UI
-   (lasciato vuoto per sicurezza; quando lo popoliamo mostra “previste Y”)
+   COUNTS (quantità previste) – opzionale; quando lo popoliamo, abilita “Mancano strutture…”
    ======================== */
 type Counts = Record<string, number>;
 const COUNTS: Record<number, Counts> = {
@@ -295,6 +294,7 @@ export default function Page() {
     const thv = detectTH(json);
     setTH(thv);
 
+    // Raccogliamo tutte le entries rilevanti
     const entries: any[] = []
       .concat(Array.isArray(json.buildings2) ? json.buildings2 : [])
       .concat(Array.isArray(json.buildings)  ? json.buildings  : [])
@@ -303,40 +303,38 @@ export default function Page() {
       .concat(Array.isArray(json.traps2)     ? json.traps2     : [])
       .concat(Array.isArray(json.pets)       ? json.pets       : []);
 
-    // ---- conteggio copie trovate per Nome ----
-    const foundMap: Record<string, number> = {};
+    // ---- Aggregazione per NOME: livello = MAX visto, copie = somma cnt ----
+    const best: Record<string, { lvl: number; cnt: number }> = {};
     for (const it of entries) {
-      const id = Number(it?.data);
-      if (!id || isNaN(id)) continue;
-      if (isBuilderBaseId(id)) continue;
-      const meta = IDMAP[id];
-      if (!meta) continue;
-      const name = meta.name;
-      const cnt = Math.max(1, Number(it?.cnt ?? 1));
-      foundMap[name] = (foundMap[name] ?? 0) + (isNaN(cnt) ? 1 : cnt);
-    }
-
-    const caps = (thv && CAPS[thv]) ? CAPS[thv] : {};
-    const counts = (thv && COUNTS[thv]) ? COUNTS[thv] : {};
-
-    const out: Row[] = [];
-    for (const it of entries) {
-      const id = Number(it?.data);
+      const id  = Number(it?.data);
       const lvl = Number(it?.lvl ?? 0);
       if (!id || Number.isNaN(lvl)) continue;
       if (isBuilderBaseId(id)) continue;
-
       const meta = IDMAP[id];
       if (!meta) continue;
-
       const name = meta.name;
+      const cnt  = Math.max(1, Number(it?.cnt ?? 1));
+      const prev = best[name];
+      if (!prev) best[name] = { lvl: isNaN(lvl)?0:lvl, cnt: isNaN(cnt)?1:cnt };
+      else {
+        if (!isNaN(lvl) && lvl > prev.lvl) prev.lvl = lvl; // livello massimo
+        prev.cnt += (isNaN(cnt)?1:cnt);                   // somma copie
+      }
+    }
+
+    const caps    = (thv && CAPS[thv])    ? CAPS[thv]    : {};
+    const counts  = (thv && COUNTS[thv])  ? COUNTS[thv]  : {};
+
+    // Costruisci righe upgrade: solo se max>0 e lvl<max
+    const out: Row[] = [];
+    for (const [name, agg] of Object.entries(best)) {
       const max = typeof caps[name] === 'number' ? caps[name] : 0;
-      if (max > 0 && lvl < max) {
+      if (max > 0 && agg.lvl < max) {
         out.push({
           name,
-          have: lvl,
+          have: agg.lvl,
           max,
-          foundCount: foundMap[name],
+          foundCount: agg.cnt,
           expectedCount: typeof counts[name] === 'number' ? counts[name] : undefined
         });
       }
@@ -359,14 +357,12 @@ export default function Page() {
     // calcola mancanze di copie vs expected (solo se COUNTS presente)
     const miss: {name:string; found:number; expected:number}[] = [];
     if (counts && Object.keys(counts).length) {
-      // percorri tutte le voci "previste" per il TH
       for (const [name, expected] of Object.entries(counts)) {
-        const found = foundMap[name] ?? 0;
+        const found = best[name]?.cnt ?? 0;
         if (expected > 0 && found < expected) {
           miss.push({ name, found, expected });
         }
       }
-      // ordina: quelle con gap maggiore prima
       miss.sort((a,b)=> (b.expected-b.found) - (a.expected-a.found));
     }
 
