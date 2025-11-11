@@ -4,12 +4,12 @@ import React, { useEffect, useRef, useState } from 'react';
 
 /**
  * Upgrade Planner — Villaggio Principale (TH10→TH17)
- * Dati di riferimento: **cap massimi** presi dal foglio Excel di Serge (nomi identici).
+ * Dati di riferimento: cap massimi presi dall'Excel aggiornato di Serge (nomi identici).
  * - Incolla JSON (buildings/buildings2, heroes/heroes2, traps/traps2, pets ok)
  * - ESCLUDE equipaggiamenti eroi e Base del Costruttore
  * - Dedup per NOME: prende il livello massimo visto e somma copie (cnt)
  * - Modalità FARM/WAR con consigli automatici
- * - UI dark, senza dipendenze esterne
+ * - UI dark, nessuna dipendenza esterna
  */
 
 /* ---------------- Parser tollerante + TH detect ---------------- */
@@ -70,7 +70,7 @@ type Cat = 'hero'|'pet'|'defense'|'trap'|'resource'|'army'|'townhall'|'other';
 type Meta = { name: string; cat: Cat };
 
 const IDMAP: Record<number, Meta> = {
-  // Heroes (nomi Excel)
+  // Heroes
   28000000:{name:'Re Barbaro',cat:'hero'},
   28000001:{name:'Regina degli Arcieri',cat:'hero'},
   28000002:{name:'Sorvegliante (Grand Warden)',cat:'hero'},
@@ -85,8 +85,8 @@ const IDMAP: Record<number, Meta> = {
   // Town Hall
   1000001:{name:'Municipio (Giga)',cat:'townhall'},
 
-  // Risorse / Armata / Strutture secondo Excel
-  1000000:{name:'Campo d’addestramento',cat:'army'},
+  // Esercito / Varie
+  1000000:{name:'Accampamento',cat:'army'},
   1000006:{name:'Caserma',cat:'army'},
   1000026:{name:'Caserma nera',cat:'army'},
   1000007:{name:'Laboratorio',cat:'army'},
@@ -97,6 +97,8 @@ const IDMAP: Record<number, Meta> = {
   1000071:{name:'Sala degli Eroi (Hero Hall)',cat:'army'},
   1000068:{name:'Casa degli Animali (Pet House)',cat:'army'},
   1000014:{name:'Castello del Clan',cat:'army'},
+
+  // Risorse
   1000004:{name:'Miniera d’Oro',cat:'resource'},
   1000002:{name:'Collettore d’Elisir',cat:'resource'},
   1000005:{name:'Deposito d’Oro',cat:'resource'},
@@ -112,7 +114,7 @@ const IDMAP: Record<number, Meta> = {
   1000012:{name:'Difesa Aerea',cat:'defense'},
   1000028:{name:'Volano (Air Sweeper)',cat:'defense'},
   1000019:{name:'Tesla Nascosta',cat:'defense'},
-  1000021:{name:'Balestra (X-Bow)',cat:'defense'},
+  1000021:{name:'Arco X (X-Bow)',cat:'defense'},
   1000027:{name:'Torre Infernale',cat:'defense'},
   1000031:{name:'Artiglieria Aquila',cat:'defense'},
   1000032:{name:'Torre delle Bombe',cat:'defense'},
@@ -131,19 +133,18 @@ const IDMAP: Record<number, Meta> = {
   12000002:{name:'Bomba Gigante',cat:'trap'},
   12000005:{name:'Bomba Aerea',cat:'trap'},
   12000001:{name:'Trappola a Molla',cat:'trap'},
-  12000006:{name:'Mina Aerea Inseguitrice',cat:'trap'},
+  12000006:{name:'Mina Aerea a Ricerca',cat:'trap'},
   12000008:{name:'Trappola Scheletrica',cat:'trap'},
   12000016:{name:'Trappola Tornado',cat:'trap'},
-  12000020:{name:'Giga Bomba',cat:'trap'},
+  12000020:{name:'Giga Bomba (solo TH17)',cat:'trap'},
 };
 
-/* ---------------- CAPS da Excel (TH10..TH17) ----------------
-   Generati dal file “Riepilogo_Structures_TH10-17_v2.xlsx”.
-   *** QUESTI SONO LA LEGGE ***  (prevalgono su qualsiasi default)
----------------------------------------------------------------- */
-const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
+/* ---------------- CAPS da Excel (TH10..TH17) ----------------- */
+/* Questi valori sono allineati al tuo file Excel aggiornato (nomi identici).
+   Se in futuro aggiorni l’Excel, basta rigenerare questa mappa. */
+const CAPS: Record<number, Record<string, number>> = {
   "10": {
-    "Campo d’addestramento": 8,
+    "Accampamento": 8,
     "Caserma": 14,
     "Caserma nera": 8,
     "Laboratorio": 9,
@@ -167,7 +168,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Difesa Aerea": 8,
     "Volano (Air Sweeper)": 5,
     "Tesla Nascosta": 8,
-    "Balestra (X-Bow)": 4,
+    "Arco X (X-Bow)": 4,
     "Torre Infernale": 3,
     "Artiglieria Aquila": 0,
     "Torre delle Bombe": 5,
@@ -183,10 +184,10 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Trappola a Molla": 5,
     "Bomba Gigante": 6,
     "Bomba Aerea": 6,
-    "Mina Aerea Inseguitrice": 3,
+    "Mina Aerea a Ricerca": 3,
     "Trappola Scheletrica": 3,
     "Trappola Tornado": 0,
-    "Giga Bomba": 0,
+    "Giga Bomba (solo TH17)": 0,
     "Mura (sezioni)": 11,
     "Re Barbaro": 50,
     "Regina degli Arcieri": 50,
@@ -194,7 +195,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Campionessa Reale": 0
   },
   "11": {
-    "Campo d’addestramento": 9,
+    "Accampamento": 9,
     "Caserma": 15,
     "Caserma nera": 9,
     "Laboratorio": 10,
@@ -218,7 +219,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Difesa Aerea": 9,
     "Volano (Air Sweeper)": 6,
     "Tesla Nascosta": 9,
-    "Balestra (X-Bow)": 5,
+    "Arco X (X-Bow)": 5,
     "Torre Infernale": 5,
     "Artiglieria Aquila": 2,
     "Torre delle Bombe": 6,
@@ -234,10 +235,10 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Trappola a Molla": 6,
     "Bomba Gigante": 6,
     "Bomba Aerea": 6,
-    "Mina Aerea Inseguitrice": 4,
+    "Mina Aerea a Ricerca": 4,
     "Trappola Scheletrica": 3,
     "Trappola Tornado": 2,
-    "Giga Bomba": 0,
+    "Giga Bomba (solo TH17)": 0,
     "Mura (sezioni)": 12,
     "Re Barbaro": 50,
     "Regina degli Arcieri": 50,
@@ -245,7 +246,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Campionessa Reale": 0
   },
   "12": {
-    "Campo d’addestramento": 10,
+    "Accampamento": 10,
     "Caserma": 16,
     "Caserma nera": 10,
     "Laboratorio": 11,
@@ -269,7 +270,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Difesa Aerea": 10,
     "Volano (Air Sweeper)": 7,
     "Tesla Nascosta": 10,
-    "Balestra (X-Bow)": 6,
+    "Arco X (X-Bow)": 6,
     "Torre Infernale": 6,
     "Artiglieria Aquila": 3,
     "Torre delle Bombe": 7,
@@ -285,10 +286,10 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Trappola a Molla": 7,
     "Bomba Gigante": 7,
     "Bomba Aerea": 7,
-    "Mina Aerea Inseguitrice": 4,
+    "Mina Aerea a Ricerca": 4,
     "Trappola Scheletrica": 4,
     "Trappola Tornado": 3,
-    "Giga Bomba": 0,
+    "Giga Bomba (solo TH17)": 0,
     "Mura (sezioni)": 14,
     "Re Barbaro": 65,
     "Regina degli Arcieri": 65,
@@ -296,7 +297,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Campionessa Reale": 0
   },
   "13": {
-    "Campo d’addestramento": 11,
+    "Accampamento": 11,
     "Caserma": 17,
     "Caserma nera": 11,
     "Laboratorio": 12,
@@ -320,7 +321,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Difesa Aerea": 11,
     "Volano (Air Sweeper)": 7,
     "Tesla Nascosta": 12,
-    "Balestra (X-Bow)": 8,
+    "Arco X (X-Bow)": 8,
     "Torre Infernale": 7,
     "Artiglieria Aquila": 4,
     "Torre delle Bombe": 8,
@@ -336,10 +337,10 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Trappola a Molla": 8,
     "Bomba Gigante": 7,
     "Bomba Aerea": 8,
-    "Mina Aerea Inseguitrice": 4,
+    "Mina Aerea a Ricerca": 4,
     "Trappola Scheletrica": 4,
     "Trappola Tornado": 3,
-    "Giga Bomba": 0,
+    "Giga Bomba (solo TH17)": 0,
     "Mura (sezioni)": 14,
     "Re Barbaro": 75,
     "Regina degli Arcieri": 75,
@@ -347,11 +348,11 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Campionessa Reale": 25
   },
   "14": {
-    "Campo d’addestramento": 12,
+    "Accampamento": 12,
     "Caserma": 18,
-    "Caserma nera": 11,
+    "Caserma nera": 12,
     "Laboratorio": 13,
-    "Fabbrica incantesimi": 7,
+    "Fabbrica incantesimi": 8,
     "Fabbrica incantesimi neri": 7,
     "Officina d’assedio (Workshop)": 6,
     "Fabbro (Blacksmith)": 4,
@@ -371,7 +372,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Difesa Aerea": 12,
     "Volano (Air Sweeper)": 7,
     "Tesla Nascosta": 13,
-    "Balestra (X-Bow)": 9,
+    "Arco X (X-Bow)": 9,
     "Torre Infernale": 8,
     "Artiglieria Aquila": 5,
     "Torre delle Bombe": 9,
@@ -387,10 +388,10 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Trappola a Molla": 9,
     "Bomba Gigante": 8,
     "Bomba Aerea": 9,
-    "Mina Aerea Inseguitrice": 4,
+    "Mina Aerea a Ricerca": 4,
     "Trappola Scheletrica": 4,
     "Trappola Tornado": 3,
-    "Giga Bomba": 0,
+    "Giga Bomba (solo TH17)": 0,
     "Mura (sezioni)": 15,
     "Re Barbaro": 85,
     "Regina degli Arcieri": 85,
@@ -398,7 +399,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Campionessa Reale": 30
   },
   "15": {
-    "Campo d’addestramento": 12,
+    "Accampamento": 12,
     "Caserma": 18,
     "Caserma nera": 12,
     "Laboratorio": 14,
@@ -422,7 +423,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Difesa Aerea": 13,
     "Volano (Air Sweeper)": 8,
     "Tesla Nascosta": 14,
-    "Balestra (X-Bow)": 10,
+    "Arco X (X-Bow)": 10,
     "Torre Infernale": 9,
     "Artiglieria Aquila": 6,
     "Torre delle Bombe": 10,
@@ -438,10 +439,10 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Trappola a Molla": 10,
     "Bomba Gigante": 9,
     "Bomba Aerea": 10,
-    "Mina Aerea Inseguitrice": 5,
+    "Mina Aerea a Ricerca": 5,
     "Trappola Scheletrica": 5,
     "Trappola Tornado": 4,
-    "Giga Bomba": 0,
+    "Giga Bomba (solo TH17)": 0,
     "Mura (sezioni)": 16,
     "Re Barbaro": 90,
     "Regina degli Arcieri": 90,
@@ -449,7 +450,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Campionessa Reale": 40
   },
   "16": {
-    "Campo d’addestramento": 13,
+    "Accampamento": 13,
     "Caserma": 18,
     "Caserma nera": 12,
     "Laboratorio": 15,
@@ -473,7 +474,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Difesa Aerea": 14,
     "Volano (Air Sweeper)": 8,
     "Tesla Nascosta": 15,
-    "Balestra (X-Bow)": 11,
+    "Arco X (X-Bow)": 11,
     "Torre Infernale": 10,
     "Artiglieria Aquila": 6,
     "Torre delle Bombe": 11,
@@ -489,10 +490,10 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Trappola a Molla": 10,
     "Bomba Gigante": 10,
     "Bomba Aerea": 11,
-    "Mina Aerea Inseguitrice": 6,
+    "Mina Aerea a Ricerca": 6,
     "Trappola Scheletrica": 5,
     "Trappola Tornado": 4,
-    "Giga Bomba": 0,
+    "Giga Bomba (solo TH17)": 0,
     "Mura (sezioni)": 17,
     "Re Barbaro": 95,
     "Regina degli Arcieri": 95,
@@ -500,7 +501,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Campionessa Reale": 45
   },
   "17": {
-    "Campo d’addestramento": 13,
+    "Accampamento": 13,
     "Caserma": 18,
     "Caserma nera": 12,
     "Laboratorio": 15,
@@ -524,7 +525,7 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Difesa Aerea": 15,
     "Volano (Air Sweeper)": 8,
     "Tesla Nascosta": 16,
-    "Balestra (X-Bow)": 12,
+    "Arco X (X-Bow)": 12,
     "Torre Infernale": 11,
     "Artiglieria Aquila": 7,
     "Torre delle Bombe": 12,
@@ -540,10 +541,10 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
     "Trappola a Molla": 11,
     "Bomba Gigante": 11,
     "Bomba Aerea": 12,
-    "Mina Aerea Inseguitrice": 7,
+    "Mina Aerea a Ricerca": 7,
     "Trappola Scheletrica": 5,
     "Trappola Tornado": 5,
-    "Giga Bomba": 5,
+    "Giga Bomba (solo TH17)": 5,
     "Mura (sezioni)": 18,
     "Re Barbaro": 100,
     "Regina degli Arcieri": 100,
@@ -552,15 +553,15 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
   }
 };
 
-/* ---------------- Priorità PRO (con nomi Excel) ---------------- */
+/* ---------------- Priorità PRO (con nomi Excel) --------------- */
 const FARM_ORDER = [
   'Collettore d’Elisir',"Miniera d’Oro",'Trivella d’Elisir Nero',
   'Deposito d’Elisir',"Deposito d’Oro",'Deposito d’Elisir Nero',
-  'Laboratorio','Campo d’addestramento','Caserma','Caserma nera',
+  'Laboratorio','Accampamento','Caserma','Caserma nera',
   'Castello del Clan','Casa degli Animali (Pet House)','Fabbro (Blacksmith)',
   'Mura (sezioni)',
   'Torre dello Stregone','Torre delle Bombe','Tesla Nascosta',
-  'Balestra (X-Bow)','Difesa Aerea','Torre degli Arcieri','Cannone','Mortaio','Volano (Air Sweeper)',
+  'Arco X (X-Bow)','Difesa Aerea','Torre degli Arcieri','Cannone','Mortaio','Volano (Air Sweeper)',
   'Artiglieria Aquila','Scagliapietre (Scattershot)','Torre Infernale','Torre degli Incantesimi','Monolite',
   'Torre Multi-Arciere','Cannone a palle rimbalzanti','Torre Multi-Ingranaggio (Long Range)','Sputafuoco',
   'Capanna del Costruttore','Municipio'
@@ -568,16 +569,16 @@ const FARM_ORDER = [
 
 const WAR_ORDER = [
   'Laboratorio','Fabbrica incantesimi','Fabbrica incantesimi neri',
-  'Campo d’addestramento','Castello del Clan',
+  'Accampamento','Castello del Clan',
   'Re Barbaro','Regina degli Arcieri','Sorvegliante (Grand Warden)','Campionessa Reale','Casa degli Animali (Pet House)',
-  'Artiglieria Aquila','Scagliapietre (Scattershot)','Torre Infernale','Balestra (X-Bow)',
+  'Artiglieria Aquila','Scagliapietre (Scattershot)','Torre Infernale','Arco X (X-Bow)',
   'Torre degli Incantesimi','Monolite','Tesla Nascosta',
   'Difesa Aerea','Torre dello Stregone','Torre delle Bombe',
   'Torre Multi-Arciere','Cannone a palle rimbalzanti','Torre Multi-Ingranaggio (Long Range)','Sputafuoco',
   'Volano (Air Sweeper)','Mortaio','Torre degli Arcieri','Cannone',
   'Capanna del Costruttore',
-  'Trappola Tornado','Mina Aerea Inseguitrice','Bomba Gigante','Bomba Aerea',
-  'Trappola Scheletrica','Trappola a Molla','Bomba','Giga Bomba',
+  'Trappola Tornado','Mina Aerea a Ricerca','Bomba Gigante','Bomba Aerea',
+  'Trappola Scheletrica','Trappola a Molla','Bomba','Giga Bomba (solo TH17)',
   'Officina d’assedio (Workshop)','Fabbro (Blacksmith)','Caserma','Caserma nera',
   'Collettore d’Elisir',"Miniera d’Oro",'Trivella d’Elisir Nero',
   'Deposito d’Elisir',"Deposito d’Oro",'Deposito d’Elisir Nero',
@@ -720,7 +721,7 @@ export default function Page() {
           {mode==='FARM' ? (
             <ul>
               <li><b>Risorse prima</b>: collettori/miniera/trivella + depositi.</li>
-              <li><b>Laboratorio sempre attivo</b> + accampamenti/caserme per ciclo rapido.</li>
+              <li><b>Laboratorio sempre attivo</b> + accampamenti/caserme.</li>
               <li><b>Builder occupati</b>: usa i <i>muri</i> tra upgrade grossi.</li>
               <li><b>Difese pro-risorse</b>: maghi, torre bombe, tesla.</li>
             </ul>
@@ -729,7 +730,7 @@ export default function Page() {
               <li><b>Attacco prima</b>: laboratorio + fabbriche.</li>
               <li><b>Esercito</b>: accampamenti e <i>Castello del Clan</i>.</li>
               <li><b>Eroi</b>: livelli chiave per abilità.</li>
-              <li><b>Difese WAR</b>: Aquila, Scagliapietre, Infernali, Balestra, Tesla, Spell Tower, Monolite.</li>
+              <li><b>Difese WAR</b>: Aquila, Scagliapietre, Infernali, Arco X, Tesla, Spell Tower, Monolite.</li>
             </ul>
           )}
         </div>
