@@ -349,9 +349,9 @@ const CAPS: Record<number, Record<string, number>> = /* paste-auto */ {
   "14": {
     "Campo d’addestramento": 12,
     "Caserma": 18,
-    "Caserma nera": 12,
+    "Caserma nera": 11,
     "Laboratorio": 13,
-    "Fabbrica incantesimi": 8,
+    "Fabbrica incantesimi": 7,
     "Fabbrica incantesimi neri": 7,
     "Officina d’assedio (Workshop)": 6,
     "Fabbro (Blacksmith)": 4,
