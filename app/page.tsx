@@ -328,15 +328,39 @@ export default function Page(){
 
   return (
     <main className="shell">
-      <header className="topbar">
-        <div className="brand"><span className="logo">⚔️</span><span className="title">Upgrade Planner</span>
-          {typeof th==='number'?<span className="badge">TH {th}</span>:<span className="badge muted">TH ?</span>}
-        </div>
-        <div className="modes">
-          <button className={`pill ${mode==='FARM'?'active':''}`} onClick={()=>setMode('FARM')}>FARM</button>
-          <button className={`pill ${mode==='WAR'?'active':''}`} onClick={()=>setMode('WAR')}>WAR</button>
-        </div>
-      </header>
+      <header className="topbar sticky">
+  <div className="brand">
+    <span className="logo">⚔️</span>
+    <div className="titles">
+      <span className="title">Upgrade Planner</span>
+      <span className="subtitle">Main Village · TH{typeof th==='number' ? th : "?"}</span>
+    </div>
+  </div>
+
+  <div className="actions">
+    <div className="toggle">
+      <button
+        className={`pill ${mode==='FARM'?'active':''}`}
+        onClick={()=>setMode('FARM')}
+        aria-pressed={mode==='FARM'}
+        title="Ottimizza loot e tempi"
+      >FARM</button>
+      <button
+        className={`pill ${mode==='WAR'?'active':''}`}
+        onClick={()=>setMode('WAR')}
+        aria-pressed={mode==='WAR'}
+        title="Ottimizza 3-stelle in CW"
+      >WAR</button>
+    </div>
+    <div className="stats">
+      <span className="chip">
+        {rows.length ? `${rows.length} upgrade` : '0 upgrade'}
+      </span>
+      <span className={`chip ${th?'ok':'muted'}`}>TH {th ?? '—'}</span>
+    </div>
+  </div>
+</header>
+
 
       <section className="card">
         <label className="label">Incolla qui il JSON del villaggio</label>
@@ -372,42 +396,116 @@ export default function Page(){
 
       <section className="card">
         <div className="card-title">Elenco completo (senza raggruppamento)</div>
-        {rows.length?(
-          <ul className="list">
-            {rows.map((r,i)=>(
-              <li key={i}><b>{r.name}</b> — liv. {r.have} → <b>{r.max}</b>{typeof r.foundCount==='number'&&<span className="chip">copie trovate: {r.foundCount}</span>}</li>
-            ))}
-          </ul>
-        ):<div className="muted">Niente da mostrare.</div>}
+      {rows.length ? (
+  <ul className="list upgrades">
+    {rows.map((r,i)=>{
+      const delta = Math.max(0, r.max - r.have);
+      const pct = Math.max(0, Math.min(100, Math.round((r.have / r.max) * 100)));
+      const isHero = /re barbaro|regina|sorvegliante|campionessa|principe minion/i.test(r.name);
+      return (
+        <li key={i} className={`row ${isHero?'hero':''}`}>
+          <div className="row-main">
+            <div className="row-title">
+              <span className="row-emoji">{isHero ? '👑' :
+                /infernal|infernale|monolite|aquila|scatter|arco|tesla|incantesimi|multi/i.test(r.name) ? '🛡️' :
+                /bomba|mina|trappola|giga/i.test(r.name) ? '⚠️' :
+                /deposito|miniera|collettore|trivella/i.test(r.name) ? '💰' :
+                /accampamento|caserma|castello|laboratorio|officina|fabbro|animali|eroi/i.test(r.name) ? '⚙️' : '📦'}
+              </span>
+              <b>{r.name}</b>
+              {typeof r.foundCount==='number' && <span className="count">×{r.foundCount}</span>}
+            </div>
+
+            <div className="levels">
+              <span className="lvl current">liv. {r.have}</span>
+              <div className="bar">
+                <div className="bar-fill" style={{width: `${pct}%`}} />
+              </div>
+              <span className="lvl target">→ {r.max}</span>
+              <span className={`delta ${delta===0?'done':''}`}>{delta===0?'MAX':`+${delta}`}</span>
+            </div>
+          </div>
+
+          <button className="copy-btn" onClick={()=>{
+            navigator.clipboard.writeText(`${r.name}: ${r.have} -> ${r.max}`);
+          }} title="Copia riga">
+            ⧉
+          </button>
+        </li>
+      );
+    })}
+  </ul>
+) : (
+  <div className="empty">
+    <div className="empty-emoji">🗂️</div>
+    <div className="empty-text">
+      Nessun upgrade da mostrare. Incolla il JSON oppure sei già al massimo per il tuo TH.
+    </div>
+  </div>
+)}
+
       </section>
 
       <style jsx>{`
-        :global(html,body){background:#09090b;color:#e5e7eb}
-        :global(*){box-sizing:border-box}
-        .shell{max-width:980px;margin:0 auto;padding:24px 18px;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
-        .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-        .brand{display:flex;align-items:center;gap:10px}
-        .logo{font-size:20px}
-        .title{font-weight:700;letter-spacing:.2px}
-        .badge{font-size:12px;padding:2px 8px;border-radius:999px;background:#0ea5e9;color:#001018}
-        .badge.muted{background:#373737;color:#bfbfbf}
-        .modes{display:flex;gap:8px}
-        .pill{border:1px solid #2a2a2a;background:linear-gradient(#151515,#101010);color:#e5e7eb;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all .15s}
-        .pill:hover{transform:translateY(-1px);border-color:#3a3a3a}
-        .pill.active{border-color:#22c55e;background:linear-gradient(#1a2d1f,#121a13);box-shadow:0 0 0 1px #1f8a3b inset}
-        .card{border:1px solid #1f1f22;background:radial-gradient(1200px 400px at -200px -100px,#111827 0%,#0b0b0c 40%,#0a0a0b 100%);border-radius:14px;padding:14px 16px;margin-bottom:14px}
-        .card-title{font-weight:700;margin:2px 0 10px}
-        .label{display:block;color:#9ca3af;margin-bottom:8px}
-        .textbox{width:100%;min-height:220px;border:1px solid #26262a;border-radius:12px;background:#0a0a0b;color:#e5e5e5;padding:12px 14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;line-height:1.4;resize:vertical}
-        .textbox:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px #1f3b77}
-        .hint{display:flex;gap:8px;align-items:center;color:#a1a1aa;margin-top:8px}
-        .dot{opacity:.5}
-        .list{margin:0;padding-left:20px;line-height:1.55}
-        .muted{color:#9ca3af}
-        .note{margin-top:12px;border:1px dashed #2a2a2a;border-radius:12px;padding:10px 12px;background:#0b0b0c;color:#cfd4dc}
-        .note ul{margin:0;padding-left:18px}
-        .chip{margin-left:8px;font-size:12px;border:1px solid #2b2b2f;border-radius:999px;padding:2px 8px;background:#0c0c0e}
-      `}</style>
+  :global(html,body){background:#0a0b0d;color:#e6e9ef}
+  :global(*){box-sizing:border-box}
+
+  .shell{max-width:980px;margin:0 auto;padding:20px 16px;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+
+  /* Topbar */
+  .topbar.sticky{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#0b0d10,rgba(11,13,16,.6));backdrop-filter:blur(6px);border:1px solid #171a20;border-radius:14px;padding:10px 12px;margin-bottom:14px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{font-size:20px}
+  .titles{display:flex;flex-direction:column;line-height:1.1}
+  .title{font-weight:800;letter-spacing:.2px}
+  .subtitle{font-size:12px;color:#9aa3b2}
+  .actions{display:flex;align-items:center;gap:12px}
+  .toggle{display:flex;gap:8px}
+  .pill{border:1px solid #263244;background:linear-gradient(#121821,#0e141d);color:#e6e9ef;padding:6px 14px;border-radius:999px;cursor:pointer;transition:all .15s}
+  .pill:hover{transform:translateY(-1px);border-color:#3b4e6a}
+  .pill.active{border-color:#28b061;background:linear-gradient(#15321f,#0e1f15);box-shadow:0 0 0 1px #1c7d48 inset}
+  .stats{display:flex;gap:8px}
+  .chip{font-size:12px;padding:4px 10px;border:1px solid #2a3444;border-radius:999px;background:#0e131a;color:#cfd6e3}
+  .chip.ok{border-color:#1a6c3f;background:#0f1b14;color:#b7efce}
+  .chip.muted{opacity:.7}
+
+  /* Cards */
+  .card{border:1px solid #171a20;background:
+    radial-gradient(800px 400px at -100px -100px,#0f1622 0%,#0c1118 50%,#0a0b0d 100%);
+    border-radius:14px;padding:14px 16px;margin-bottom:14px}
+  .card-title{font-weight:800;margin:2px 0 12px}
+
+  /* Text area */
+  .label{display:block;color:#9aa3b2;margin-bottom:8px}
+  .textbox{width:100%;min-height:220px;border:1px solid #1b2230;border-radius:12px;background:#0a0e14;color:#e6e9ef;padding:12px 14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;line-height:1.4;resize:vertical}
+  .textbox:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px #1a2f57}
+  .hint{display:flex;gap:8px;align-items:center;color:#98a3b3;margin-top:8px}
+  .dot{opacity:.5}
+
+  /* Empty state */
+  .empty{display:flex;align-items:center;gap:12px;color:#9aa3b2;padding:8px 0}
+  .empty-emoji{font-size:20px}
+
+  /* List */
+  .list{margin:0;padding-left:0;list-style:none}
+  .upgrades{display:flex;flex-direction:column;gap:10px}
+
+  .row{display:flex;align-items:center;gap:10px;border:1px solid #171c25;background:linear-gradient(180deg,#0f151f,#0c1017);border-radius:12px;padding:10px 12px}
+  .row.hero{border-color:#2a2135;background:linear-gradient(180deg,#171024,#120b1b)}
+  .row-main{flex:1;min-width:0}
+  .row-title{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .row-emoji{width:22px;text-align:center}
+  .count{margin-left:6px;font-size:12px;color:#aab2c0;border:1px solid #283244;border-radius:6px;padding:1px 6px;background:#0a0e14}
+  .levels{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center}
+  .lvl{font-variant-numeric:tabular-nums}
+  .bar{height:8px;background:#121924;border:1px solid #1a2230;border-radius:999px;overflow:hidden}
+  .bar-fill{height:100%;background:linear-gradient(90deg,#22c55e,#16a34a)}
+  .delta{font-size:12px;padding:2px 8px;border:1px solid #283244;border-radius:999px;background:#0c121a;color:#bcd0ea}
+  .delta.done{background:#0f1b14;border-color:#1a6c3f;color:#b7efce}
+  .copy-btn{border:1px solid #263244;background:#0e131a;color:#d5deea;border-radius:10px;padding:6px 8px;cursor:pointer}
+  .copy-btn:hover{transform:translateY(-1px);border-color:#3b4e6a}
+`}</style>
+
     </main>
   );
 }
