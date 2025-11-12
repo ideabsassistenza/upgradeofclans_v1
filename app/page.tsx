@@ -333,20 +333,27 @@ export default function Page(){
     const thv=detectTH(json);
     setTH(thv);
 
-   // 1) separa EROI (solo heroes/heroes2, ID 280000xx)
+  // Tipi base per record provenienti dal JSON
 type AnyRec = { data?: number; lvl?: number; cnt?: number };
-const heroEntries: AnyRec[] = []
-  .concat(Array.isArray(json.heroes2) ? (json.heroes2 as AnyRec[]) : [])
-  .concat(Array.isArray(json.heroes)  ? (json.heroes  as AnyRec[]) : [])
-  .filter((it: AnyRec) => typeof it?.data === 'number' && String(it.data!).startsWith('280000'));
 
-// 2) il resto (difese/risorse/esercito/trappole) — niente pets
-const otherEntries: AnyRec[] = []
-  .concat(Array.isArray(json.buildings2) ? (json.buildings2 as AnyRec[]) : [])
-  .concat(Array.isArray(json.buildings)  ? (json.buildings  as AnyRec[]) : [])
-  .concat(Array.isArray(json.traps2)     ? (json.traps2     as AnyRec[]) : [])
-  .concat(Array.isArray(json.traps)      ? (json.traps      as AnyRec[]) : [])
-  .filter((it: AnyRec) => typeof it?.data === 'number');
+/* 1) EROI — prendi solo heroes/heroes2 (ID 280000xx) */
+const heroEntries: AnyRec[] = (
+  [
+    ...(Array.isArray(json.heroes2) ? (json.heroes2 as AnyRec[]) : []),
+    ...(Array.isArray(json.heroes)  ? (json.heroes  as AnyRec[]) : []),
+  ] as AnyRec[]
+).filter((it) => typeof it?.data === 'number' && String(it.data!).startsWith('280000'));
+
+/* 2) ALTRI — buildings/buildings2/traps/traps2 (niente pets) */
+const otherEntries: AnyRec[] = (
+  [
+    ...(Array.isArray(json.buildings2) ? (json.buildings2 as AnyRec[]) : []),
+    ...(Array.isArray(json.buildings)  ? (json.buildings  as AnyRec[]) : []),
+    ...(Array.isArray(json.traps2)     ? (json.traps2     as AnyRec[]) : []),
+    ...(Array.isArray(json.traps)      ? (json.traps      as AnyRec[]) : []),
+  ] as AnyRec[]
+).filter((it) => typeof it?.data === 'number');
+
 
 
     // 3) aggregazione
