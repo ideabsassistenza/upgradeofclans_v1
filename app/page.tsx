@@ -5,9 +5,10 @@ import React, { useEffect, useRef, useState } from 'react';
    Upgrade Planner — Villaggio Principale (TH10→TH17)
    - Parser tollerante input JSON (frammenti o oggetti completi)
    - Rilevamento TH
-   - ID→Nome in italiano (incluso Principe degli sgherri ID 28000006)
-   - **CAPS Strutture con quantità + livello max (qty + lvl) per TH10–TH17)**
-   - Eroi: invariati (cap livello)
+   - ID→Nome in italiano (incluso Principe Minion ID 28000006)
+   - CAPS Strutture: **quantità + livello max** per TH10–TH17 (qty + lvl)
+   - Eroi: invariati (solo livello)
+   - Conta copie sotto-cap (muri & strutture duplicate): mostra quante sono da alzare
    - Modalità FARM / WAR con ordinamento consigli
    - UI pulita con banner /public/banner.png
    - Esclusi equipaggiamenti eroi e Base del Costruttore
@@ -22,6 +23,9 @@ type Cap = { qty: number; lvl: number };
 type CapsByName = Record<string, Cap>;
 const THS = [10,11,12,13,14,15,16,17] as const;
 type TH = typeof THS[number];
+
+type LevelBucket = { lvl: number; cnt: number };
+type Agg = { totalCnt: number; minLvl: number; buckets: LevelBucket[] };
 
 /* =============== Util =============== */
 function normalizeName(s: string): string {
@@ -80,8 +84,8 @@ const IDMAP: Record<number, Meta> = {
   28000001:{name:'Regina degli Arcieri',cat:'hero'},
   28000002:{name:'Sorvegliante (Grand Warden)',cat:'hero'},
   28000004:{name:'Campionessa Reale',cat:'hero'},
-  28000005:{name:'Principe degli sgherri',cat:'hero'}, // compat legacy
-  28000006:{name:'Principe degli sgherri',cat:'hero'}, // ID confermato dal tuo JSON
+  28000005:{name:'Principe Minion',cat:'hero'}, // compat legacy
+  28000006:{name:'Principe Minion',cat:'hero'}, // confermato
   // Pets (solo presenza)
   73000000:{name:'L.A.S.S.I',cat:'pet'},
   73000001:{name:'Gufo Elettrico',cat:'pet'},
@@ -116,7 +120,7 @@ const IDMAP: Record<number, Meta> = {
   1000012:{name:'Difesa Aerea',cat:'defense'},
   1000028:{name:'Volano (Air Sweeper)',cat:'defense'},
   1000019:{name:'Tesla Nascosta',cat:'defense'},
-  1000032:{name:'Torre Bombardiera',cat:'defense'},
+  1000032:{name:'Torre delle Bombe',cat:'defense'},
   1000021:{name:'Arco X (X-Bow)',cat:'defense'},
   1000027:{name:'Torre Infernale',cat:'defense'},
   1000031:{name:'Artiglieria Aquila',cat:'defense'},
@@ -144,19 +148,19 @@ const IDMAP: Record<number, Meta> = {
    CAPS — Eroi (invariati)
    ========================================================= */
 const CAPS_HERO: Record<number, Record<string, number>> = {
-  10: {"Re Barbaro":40,"Regina degli Arcieri":40,"Principe degli sgherri":20,"Sorvegliante (Grand Warden)":0,"Campionessa Reale":0},
-  11: {"Re Barbaro":50,"Regina degli Arcieri":50,"Principe degli sgherri":30,"Sorvegliante (Grand Warden)":20,"Campionessa Reale":0},
-  12: {"Re Barbaro":65,"Regina degli Arcieri":65,"Principe degli sgherri":40,"Sorvegliante (Grand Warden)":40,"Campionessa Reale":0},
-  13: {"Re Barbaro":75,"Regina degli Arcieri":75,"Principe degli sgherri":50,"Sorvegliante (Grand Warden)":50,"Campionessa Reale":25},
-  14: {"Re Barbaro":85,"Regina degli Arcieri":85,"Principe degli sgherri":60,"Sorvegliante (Grand Warden)":60,"Campionessa Reale":30},
-  15: {"Re Barbaro":90,"Regina degli Arcieri":90,"Principe degli sgherri":70,"Sorvegliante (Grand Warden)":65,"Campionessa Reale":40},
-  16: {"Re Barbaro":95,"Regina degli Arcieri":95,"Principe degli sgherri":80,"Sorvegliante (Grand Warden)":70,"Campionessa Reale":45},
-  17: {"Re Barbaro":100,"Regina degli Arcieri":100,"Principe degli sgherri":90,"Sorvegliante (Grand Warden)":75,"Campionessa Reale":50},
+  10: {"Re Barbaro":40,"Regina degli Arcieri":40,"Principe Minion":20,"Sorvegliante (Grand Warden)":0,"Campionessa Reale":0},
+  11: {"Re Barbaro":50,"Regina degli Arcieri":50,"Principe Minion":30,"Sorvegliante (Grand Warden)":20,"Campionessa Reale":0},
+  12: {"Re Barbaro":65,"Regina degli Arcieri":65,"Principe Minion":40,"Sorvegliante (Grand Warden)":40,"Campionessa Reale":25},
+  13: {"Re Barbaro":75,"Regina degli Arcieri":75,"Principe Minion":50,"Sorvegliante (Grand Warden)":50,"Campionessa Reale":30},
+  14: {"Re Barbaro":80,"Regina degli Arcieri":80,"Principe Minion":60,"Sorvegliante (Grand Warden)":55,"Campionessa Reale":35},
+  15: {"Re Barbaro":90,"Regina degli Arcieri":90,"Principe Minion":70,"Sorvegliante (Grand Warden)":60,"Campionessa Reale":40},
+  16: {"Re Barbaro":95,"Regina degli Arcieri":95,"Principe Minion":80,"Sorvegliante (Grand Warden)":70,"Campionessa Reale":45},
+  17: {"Re Barbaro":100,"Regina degli Arcieri":100,"Principe Minion":90,"Sorvegliante (Grand Warden)":75,"Campionessa Reale":50},
 };
 
 /* =========================================================
    CAPS — Strutture (qty + lvl) per TH10→TH17
-   Generati dal tuo Excel Riepilogo_Structures_TH10-17_v4.xlsx
+   (base consolidata coerente con il tuo file aggiornato)
    ========================================================= */
 const CAPS2: Record<TH, CapsByName> = {
   10: {
@@ -174,18 +178,18 @@ const CAPS2: Record<TH, CapsByName> = {
     "Miniera d’Oro": { qty: 7, lvl: 13 },
     "Collettore d’Elisir": { qty: 7, lvl: 13 },
     "Deposito d’Oro": { qty: 4, lvl: 11 },
-    "Deposito d’Elisir": { qty: 4, lvl: 11 },
+    "Deposito d’Elisir": { qty: 4, lvl: 12 },
     "Trivella d’Elisir Nero": { qty: 3, lvl: 7 },
     "Deposito d’Elisir Nero": { qty: 1, lvl: 6 },
     "Cannone": { qty: 6, lvl: 13 },
     "Torre degli Arcieri": { qty: 7, lvl: 13 },
     "Mortaio": { qty: 4, lvl: 8 },
-    "Torre dello Stregone": { qty: 4, lvl: 9 },
+    "Torre dello Stregone": { qty: 5, lvl: 9 },
     "Difesa Aerea": { qty: 4, lvl: 8 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 4 },
-    "Tesla Nascosta": { qty: 4, lvl: 8 },
-    "Torre Bombardiera": { qty: 2, lvl: 4 },
-    "Arco X (X-Bow)": { qty: 3, lvl: 3 },
+    "Tesla Nascosta": { qty: 5, lvl: 8 },
+    "Torre delle Bombe": { qty: 2, lvl: 4 },
+    "Arco X (X-Bow)": { qty: 3, lvl: 4 },
     "Torre Infernale": { qty: 2, lvl: 3 },
     "Artiglieria Aquila": { qty: 0, lvl: 0 },
     "Scagliapietre (Scattershot)": { qty: 0, lvl: 0 },
@@ -196,7 +200,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Cannone a palle rimbalzanti": { qty: 0, lvl: 0 },
     "Torre Multi-Ingranaggio (Long Range)": { qty: 0, lvl: 0 },
     "Sputafuoco": { qty: 0, lvl: 0 },
-    "Mura (sezioni)": { qty: 275, lvl: 11 },
+    "Mura (sezioni)": { qty: 300, lvl: 11 },
     "Bomba": { qty: 6, lvl: 6 },
     "Trappola a Molla": { qty: 5, lvl: 5 },
     "Bomba Gigante": { qty: 6, lvl: 6 },
@@ -231,8 +235,8 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 9 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 6 },
     "Tesla Nascosta": { qty: 5, lvl: 9 },
-    "Torre Bombardiera": { qty: 2, lvl: 6 },
-    "Arco X (X-Bow)": { qty: 3, lvl: 4 },
+    "Torre delle Bombe": { qty: 2, lvl: 6 },
+    "Arco X (X-Bow)": { qty: 4, lvl: 5 },
     "Torre Infernale": { qty: 2, lvl: 5 },
     "Artiglieria Aquila": { qty: 1, lvl: 1 },
     "Scagliapietre (Scattershot)": { qty: 0, lvl: 0 },
@@ -278,7 +282,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 10 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 7 },
     "Tesla Nascosta": { qty: 5, lvl: 10 },
-    "Torre Bombardiera": { qty: 2, lvl: 7 },
+    "Torre delle Bombe": { qty: 2, lvl: 7 },
     "Arco X (X-Bow)": { qty: 4, lvl: 5 },
     "Torre Infernale": { qty: 2, lvl: 6 },
     "Artiglieria Aquila": { qty: 1, lvl: 3 },
@@ -302,8 +306,8 @@ const CAPS2: Record<TH, CapsByName> = {
   },
   13: {
     "Accampamento": { qty: 4, lvl: 11 },
-    "Caserma": { qty: 1, lvl: 14 },
-    "Caserma nera": { qty: 1, lvl: 11 },
+    "Caserma": { qty: 1, lvl: 15 },
+    "Caserma nera": { qty: 1, lvl: 10 },
     "Laboratorio": { qty: 1, lvl: 11 },
     "Fabbrica incantesimi": { qty: 1, lvl: 7 },
     "Fabbrica incantesimi neri": { qty: 1, lvl: 6 },
@@ -325,7 +329,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 11 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 7 },
     "Tesla Nascosta": { qty: 5, lvl: 12 },
-    "Torre Bombardiera": { qty: 2, lvl: 8 },
+    "Torre delle Bombe": { qty: 2, lvl: 8 },
     "Arco X (X-Bow)": { qty: 4, lvl: 5 },
     "Torre Infernale": { qty: 2, lvl: 7 },
     "Artiglieria Aquila": { qty: 1, lvl: 4 },
@@ -337,7 +341,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Cannone a palle rimbalzanti": { qty: 0, lvl: 0 },
     "Torre Multi-Ingranaggio (Long Range)": { qty: 0, lvl: 0 },
     "Sputafuoco": { qty: 0, lvl: 0 },
-    "Mura (sezioni)": { qty: 300, lvl: 14 },
+    "Mura (sezioni)": { qty: 325, lvl: 14 },
     "Bomba": { qty: 9, lvl: 9 },
     "Trappola a Molla": { qty: 8, lvl: 8 },
     "Bomba Gigante": { qty: 7, lvl: 7 },
@@ -349,8 +353,8 @@ const CAPS2: Record<TH, CapsByName> = {
   },
   14: {
     "Accampamento": { qty: 4, lvl: 11 },
-    "Caserma": { qty: 1, lvl: 15 },
-    "Caserma nera": { qty: 1, lvl: 10 },
+    "Caserma": { qty: 1, lvl: 16 },
+    "Caserma nera": { qty: 1, lvl: 11 },
     "Laboratorio": { qty: 1, lvl: 12 },
     "Fabbrica incantesimi": { qty: 1, lvl: 7 },
     "Fabbrica incantesimi neri": { qty: 1, lvl: 6 },
@@ -372,7 +376,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 12 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 7 },
     "Tesla Nascosta": { qty: 5, lvl: 13 },
-    "Torre Bombardiera": { qty: 2, lvl: 9 },
+    "Torre delle Bombe": { qty: 2, lvl: 9 },
     "Arco X (X-Bow)": { qty: 4, lvl: 6 },
     "Torre Infernale": { qty: 2, lvl: 8 },
     "Artiglieria Aquila": { qty: 1, lvl: 5 },
@@ -396,7 +400,7 @@ const CAPS2: Record<TH, CapsByName> = {
   },
   15: {
     "Accampamento": { qty: 4, lvl: 12 },
-    "Caserma": { qty: 1, lvl: 16 },
+    "Caserma": { qty: 1, lvl: 17 },
     "Caserma nera": { qty: 1, lvl: 11 },
     "Laboratorio": { qty: 1, lvl: 13 },
     "Fabbrica incantesimi": { qty: 1, lvl: 8 },
@@ -419,7 +423,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 13 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 7 },
     "Tesla Nascosta": { qty: 5, lvl: 14 },
-    "Torre Bombardiera": { qty: 2, lvl: 10 },
+    "Torre delle Bombe": { qty: 2, lvl: 10 },
     "Arco X (X-Bow)": { qty: 4, lvl: 7 },
     "Torre Infernale": { qty: 2, lvl: 9 },
     "Artiglieria Aquila": { qty: 1, lvl: 6 },
@@ -443,7 +447,7 @@ const CAPS2: Record<TH, CapsByName> = {
   },
   16: {
     "Accampamento": { qty: 4, lvl: 12 },
-    "Caserma": { qty: 1, lvl: 17 },
+    "Caserma": { qty: 1, lvl: 18 },
     "Caserma nera": { qty: 1, lvl: 11 },
     "Laboratorio": { qty: 1, lvl: 14 },
     "Fabbrica incantesimi": { qty: 1, lvl: 8 },
@@ -466,7 +470,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 14 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 8 },
     "Tesla Nascosta": { qty: 5, lvl: 15 },
-    "Torre Bombardiera": { qty: 2, lvl: 11 },
+    "Torre delle Bombe": { qty: 2, lvl: 11 },
     "Arco X (X-Bow)": { qty: 4, lvl: 11 },
     "Torre Infernale": { qty: 2, lvl: 10 },
     "Artiglieria Aquila": { qty: 1, lvl: 6 },
@@ -513,7 +517,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 15 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 8 },
     "Tesla Nascosta": { qty: 5, lvl: 16 },
-    "Torre Bombardiera": { qty: 2, lvl: 12 },
+    "Torre delle Bombe": { qty: 2, lvl: 12 },
     "Arco X (X-Bow)": { qty: 4, lvl: 12 },
     "Torre Infernale": { qty: 2, lvl: 11 },
     "Artiglieria Aquila": { qty: 1, lvl: 7 },
@@ -543,7 +547,7 @@ const FARM_ORDER = [
   'Deposito d’Elisir','Deposito d’Oro','Deposito d’Elisir Nero',
   'Laboratorio','Accampamento','Caserma','Caserma nera','Castello del Clan','Casa degli Animali (Pet House)','Fabbro (Blacksmith)',
   'Mura (sezioni)',
-  'Torre dello Stregone','Torre Bombardiera','Tesla Nascosta',
+  'Torre dello Stregone','Torre delle Bombe','Tesla Nascosta',
   'Arco X (X-Bow)','Difesa Aerea','Torre degli Arcieri','Cannone','Mortaio','Volano (Air Sweeper)',
   'Artiglieria Aquila','Scagliapietre (Scattershot)','Torre Infernale','Torre degli Incantesimi','Monolite',
   'Torre Multi-Arciere','Cannone a palle rimbalzanti','Torre Multi-Ingranaggio (Long Range)','Sputafuoco',
@@ -553,10 +557,10 @@ const FARM_ORDER = [
 const WAR_ORDER = [
   'Laboratorio','Fabbrica incantesimi','Fabbrica incantesimi neri',
   'Accampamento','Castello del Clan',
-  'Re Barbaro','Regina degli Arcieri','Principe degli sgherri','Sorvegliante (Grand Warden)','Campionessa Reale','Casa degli Animali (Pet House)',
+  'Re Barbaro','Regina degli Arcieri','Principe Minion','Sorvegliante (Grand Warden)','Campionessa Reale','Casa degli Animali (Pet House)',
   'Artiglieria Aquila','Scagliapietre (Scattershot)','Torre Infernale','Arco X (X-Bow)','Tesla Nascosta',
   'Torre degli Incantesimi','Monolite',
-  'Difesa Aerea','Torre dello Stregone','Torre Bombardiera',
+  'Difesa Aerea','Torre dello Stregone','Torre delle Bombe',
   'Torre Multi-Arciere','Cannone a palle rimbalzanti','Torre Multi-Ingranaggio (Long Range)','Sputafuoco',
   'Volano (Air Sweeper)','Mortaio','Torre degli Arcieri','Cannone',
   'Capanna del Costruttore',
@@ -609,114 +613,153 @@ export default function Page(){
       ] as AnyRec[]
     ).filter((it) => typeof it?.data === 'number');
 
-    // 3) aggregazione
-    const agg:Record<string,{lvl:number;cnt:number}> = {};
+    // ====== Aggregazione con distribuzione livelli per strutture/trappole ======
+    const agg: Record<string, Agg> = {};
+    const heroAgg: Record<string, { lvl: number; cnt: number }> = {};
 
-    // eroi: mappa ID→nome, usa max lvl se duplicati
+    // 2a) Strutture e trappole (registriamo buckets di livello)
+    for (const it of otherEntries) {
+      const id = Number(it.data);
+      const lvl = Math.max(0, Number(it.lvl ?? 0));
+      const cnt = Math.max(1, Number(it.cnt ?? 1));
+      const meta = IDMAP[id];
+      if (!meta || meta.cat === 'hero') continue;
+      const name = meta.name;
+
+      const cur = agg[name] ?? { totalCnt: 0, minLvl: Infinity, buckets: [] };
+      cur.totalCnt += cnt;
+      cur.minLvl = Math.min(cur.minLvl, lvl);
+      const b = cur.buckets.find(x => x.lvl === lvl);
+      if (b) b.cnt += cnt; else cur.buckets.push({ lvl, cnt });
+      agg[name] = cur;
+    }
+
+    // 2b) Eroi (manteniamo MAX livello, qty irrilevante)
     for (const it of heroEntries) {
       const id = Number(it.data);
       const lvl = Number(it.lvl ?? 0);
       const meta = IDMAP[id];
       if (!meta || meta.cat !== 'hero') continue;
       const name = meta.name;
-      const prev = agg[name];
-      if (!prev) agg[name] = { lvl, cnt: 1 };
+      const prev = heroAgg[name];
+      if (!prev) heroAgg[name] = { lvl, cnt: 1 };
       else if (lvl > prev.lvl) prev.lvl = lvl;
     }
 
-    // altri: difese/risorse/esercito/trappole
-    for (const it of otherEntries) {
-      const id = Number(it.data);
-      const lvl = Number(it.lvl ?? 0);
-      const cnt = Math.max(1, Number(it.cnt ?? 1));
-      const meta = IDMAP[id];
-      if (!meta) continue;
-      if (meta.cat === 'hero') continue; // eroi già gestiti
-      const name = meta.name;
-      const prev = agg[name];
-      if (!prev) agg[name] = { lvl, cnt };
-      else {
-        if (lvl > prev.lvl) prev.lvl = lvl;
-        prev.cnt += cnt;
-      }
-    }
-
-    // 4) confronto con CAPS (Eroi) + CAPS2 (Strutture qty+lvl)
+    // ====== Confronto con CAPS ======
     const out:Row[]=[];
     if (typeof thv==='number') {
       const heroCapMap = CAPS_HERO[thv] || {};
       const capmap = CAPS2[thv as TH] || {};
-
       const capIndex = new Map<string,{name:string; cap:Cap}>();
       Object.entries(capmap).forEach(([name,cap])=> capIndex.set(normalizeName(name), {name,cap}));
 
+      // 3a) Strutture/trappole: livello minimo + copie sotto-cap
       for(const [name,info] of Object.entries(agg)){
         const norm = normalizeName(name);
-
-        // 4a) ER0I: solo livello (qty non rilevante)
-        if (heroCapMap[name as keyof typeof heroCapMap] !== undefined) {
-          const capLvl = heroCapMap[name as keyof typeof heroCapMap]!;
-          if (capLvl>0 && info.lvl<capLvl) {
-            out.push({ name, have: info.lvl, max: capLvl, foundCount: info.cnt });
-          }
-          continue;
-        }
-
-        // 4b) STRUTTURE: qty + lvl
         const hit = capIndex.get(norm);
         if (!hit) continue;
         const { cap } = hit;
         if (cap.qty===0 && cap.lvl===0) continue; // non esiste a quel TH
 
-        const needLvl = cap.lvl > 0 && info.lvl < cap.lvl;
-        const needQty = cap.qty > 0 && info.cnt < cap.qty;
+        // quante copie sono sotto il livello cap?
+        const belowCnt = info.buckets.reduce((acc, b) => acc + (b.lvl < cap.lvl ? b.cnt : 0), 0);
 
-        if (needLvl || needQty) {
+        const needQty = cap.qty > 0 && info.totalCnt < cap.qty;
+        const needLvl = cap.lvl > 0 && belowCnt > 0;
+
+        if (needQty || needLvl) {
           out.push({
             name,
-            have: info.lvl,
+            have: info.minLvl === Infinity ? 0 : info.minLvl,
             max: cap.lvl,
-            foundCount: info.cnt,
-            targetQty: cap.qty
+            foundCount: info.totalCnt,     // copie attuali
+            targetQty: cap.qty             // copie richieste a quel TH
           });
+        }
+      }
+
+      // 3b) Eroi come prima (solo livello)
+      for (const [name, h] of Object.entries(heroAgg)) {
+        const capLvl = heroCapMap[name as keyof typeof heroCapMap];
+        if (typeof capLvl === 'number' && capLvl > 0 && h.lvl < capLvl) {
+          out.push({ name, have: h.lvl, max: capLvl, foundCount: h.cnt });
         }
       }
     }
 
-    // 5) ordinamento secondo modalità
+    // ====== Ordinamento ======
     const order = mode==='WAR'?WAR_ORDER:FARM_ORDER;
     const rank=(n:string)=>{ const i=order.findIndex(x=>normalizeName(n).includes(normalizeName(x))); return i===-1?999:i; };
+
+    function belowCountFor(name: string, th?: number): number {
+      if (!th) return 0;
+      const cap = CAPS2[th as TH]?.[name];
+      const rec = agg[name];
+      if (!cap || !rec) return 0;
+      return rec.buckets.reduce((acc,b)=> acc + (b.lvl < cap.lvl ? b.cnt : 0), 0);
+    }
+
     out.sort((a,b)=>{
-      // prima chi ha gap di quantità
+      // prima gap di quantità richieste vs trovate
       const qA = (a.targetQty ?? 0) - (a.foundCount ?? 0);
       const qB = (b.targetQty ?? 0) - (b.foundCount ?? 0);
       if (qA !== qB) return qB - qA;
-      // poi priorità lista
+
+      // poi chi ha più copie sotto-cap (solo strutture)
+      const bcA = belowCountFor(a.name, thv);
+      const bcB = belowCountFor(b.name, thv);
+      if (bcA !== bcB) return bcB - bcA;
+
+      // poi priorità WAR/FARM
       const ra=rank(a.name), rb=rank(b.name); if(ra!==rb) return ra-rb;
-      // poi gap livello
+
+      // poi gap di livello
       const da=a.max-a.have, db=b.max-b.have; if(db!==da) return db-da;
+
       return a.name.localeCompare(b.name,'it');
     });
     setRows(out);
 
-    // 6) consigli (prime 10 voci)
+    // ====== Consigli (top 10) ======
     const tipsOut:string[]=[];
     const push=(needle:string)=>{
       for(const r of out){
         if(normalizeName(r.name).includes(normalizeName(needle))){
-          const qtyText = typeof r.targetQty==='number' ? ` ×${r.foundCount ?? 0}/${r.targetQty}` : '';
-          const line=`${r.name}${qtyText}: ${r.have} → ${r.max}`;
+          const line=`${r.name}${formatQtyBadge(r.name, r.foundCount, r.targetQty, thv, agg)}: ${r.have} → ${r.max}`;
           if(!tipsOut.includes(line)){ tipsOut.push(line); if(tipsOut.length>=10) return true; }
         }
       }
       return false;
     };
     for(const k of order) if(push(k)) break;
-    if(!tipsOut.length){ for(const r of out){ const qt = typeof r.targetQty==='number'?` ×${r.foundCount ?? 0}/${r.targetQty}`:''; const line=`${r.name}{qt}: ${r.have} → ${r.max}`.replace('{qt}', qt); if(!tipsOut.includes(line)) tipsOut.push(line); if(tipsOut.length>=10) break; } }
+    if(!tipsOut.length){
+      for(const r of out){
+        const line=`${r.name}${formatQtyBadge(r.name, r.foundCount, r.targetQty, thv, agg)}: ${r.have} → ${r.max}`;
+        if(!tipsOut.includes(line)) tipsOut.push(line);
+        if(tipsOut.length>=10) break;
+      }
+    }
     setTips(tipsOut);
 
-    // 7) summary
+    // ====== Summary ======
     setSummary(`${typeof thv==='number' ? `TH rilevato: ${thv}` : 'TH non rilevato'} · ${out.length} upgrade rilevati`);
+  }
+
+  function formatQtyBadge(
+    name: string,
+    found?: number,
+    target?: number,
+    th?: number,
+    aggRef?: Record<string, Agg>
+  ): string {
+    const base = typeof target === 'number' ? ` ×${found ?? 0}/${target}` : (typeof found === 'number' ? ` ×${found}` : '');
+    if (!th || !aggRef) return base;
+    const cap = CAPS2[th as TH]?.[name];
+    const rec = aggRef[name];
+    if (!cap || !rec) return base;
+    const below = rec.buckets.reduce((acc,b)=> acc + (b.lvl < cap.lvl ? b.cnt : 0), 0);
+    return below > 0 ? `${base} (sotto-cap: ${below})` : base;
   }
 
   return (
@@ -756,7 +799,7 @@ export default function Page(){
               <li><b>Risorse prima</b>: collettori/miniere/trivelle + depositi.</li>
               <li><b>Laboratorio sempre attivo</b> + accampamenti/caserme.</li>
               <li><b>Builder occupati</b>: usa i <i>muri</i> tra upgrade grossi.</li>
-              <li><b>Difese pro-risorse</b>: maghi, torre Bombardiera, tesla.</li>
+              <li><b>Difese pro-risorse</b>: maghi, torre bombe, tesla.</li>
             </ul>
           ):(
             <ul>
@@ -778,7 +821,7 @@ export default function Page(){
               const delta = Math.max(0, r.max - r.have);
               const pct = Math.max(0, Math.min(100, Math.round((r.have / r.max) * 100)));
               const isHero = /re barbaro|regina|sorvegliante|campionessa|minion/i.test(r.name);
-              const qtyText = typeof r.targetQty==='number' ? ` ×${r.foundCount ?? 0}/${r.targetQty}` : (typeof r.foundCount==='number' ? ` ×${r.foundCount}` : '');
+              const qtyText = formatQtyBadge(r.name, r.foundCount, r.targetQty, th);
               return (
                 <li key={i} className={`row ${isHero?'hero':''}`}>
                   <div className="row-main">
