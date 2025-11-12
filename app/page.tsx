@@ -174,7 +174,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Miniera d’Oro": { qty: 7, lvl: 13 },
     "Collettore d’Elisir": { qty: 7, lvl: 13 },
     "Deposito d’Oro": { qty: 4, lvl: 11 },
-    "Deposito d’Elisir": { qty: 4, lvl: 12 },
+    "Deposito d’Elisir": { qty: 4, lvl: 11 },
     "Trivella d’Elisir Nero": { qty: 3, lvl: 7 },
     "Deposito d’Elisir Nero": { qty: 1, lvl: 6 },
     "Cannone": { qty: 6, lvl: 13 },
