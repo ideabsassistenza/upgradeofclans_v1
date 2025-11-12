@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
    Upgrade Planner — Villaggio Principale (TH10→TH17)
    - Parser tollerante input JSON (frammenti o oggetti completi)
    - Rilevamento TH
-   - ID→Nome in italiano (incluso Principe Minion ID 28000006)
+   - ID→Nome in italiano (incluso Principe degli sgherri ID 28000006)
    - **CAPS Strutture con quantità + livello max (qty + lvl) per TH10–TH17)**
    - Eroi: invariati (cap livello)
    - Modalità FARM / WAR con ordinamento consigli
@@ -80,8 +80,8 @@ const IDMAP: Record<number, Meta> = {
   28000001:{name:'Regina degli Arcieri',cat:'hero'},
   28000002:{name:'Sorvegliante (Grand Warden)',cat:'hero'},
   28000004:{name:'Campionessa Reale',cat:'hero'},
-  28000005:{name:'Principe Minion',cat:'hero'}, // compat legacy
-  28000006:{name:'Principe Minion',cat:'hero'}, // ID confermato dal tuo JSON
+  28000005:{name:'Principe degli sgherri',cat:'hero'}, // compat legacy
+  28000006:{name:'Principe degli sgherri',cat:'hero'}, // ID confermato dal tuo JSON
   // Pets (solo presenza)
   73000000:{name:'L.A.S.S.I',cat:'pet'},
   73000001:{name:'Gufo Elettrico',cat:'pet'},
@@ -116,7 +116,7 @@ const IDMAP: Record<number, Meta> = {
   1000012:{name:'Difesa Aerea',cat:'defense'},
   1000028:{name:'Volano (Air Sweeper)',cat:'defense'},
   1000019:{name:'Tesla Nascosta',cat:'defense'},
-  1000032:{name:'Torre delle Bombe',cat:'defense'},
+  1000032:{name:'Torre Bombardiera',cat:'defense'},
   1000021:{name:'Arco X (X-Bow)',cat:'defense'},
   1000027:{name:'Torre Infernale',cat:'defense'},
   1000031:{name:'Artiglieria Aquila',cat:'defense'},
@@ -144,14 +144,14 @@ const IDMAP: Record<number, Meta> = {
    CAPS — Eroi (invariati)
    ========================================================= */
 const CAPS_HERO: Record<number, Record<string, number>> = {
-  10: {"Re Barbaro":40,"Regina degli Arcieri":40,"Principe Minion":20,"Sorvegliante (Grand Warden)":0,"Campionessa Reale":0},
-  11: {"Re Barbaro":50,"Regina degli Arcieri":50,"Principe Minion":30,"Sorvegliante (Grand Warden)":20,"Campionessa Reale":0},
-  12: {"Re Barbaro":65,"Regina degli Arcieri":65,"Principe Minion":40,"Sorvegliante (Grand Warden)":40,"Campionessa Reale":0},
-  13: {"Re Barbaro":75,"Regina degli Arcieri":75,"Principe Minion":50,"Sorvegliante (Grand Warden)":50,"Campionessa Reale":25},
-  14: {"Re Barbaro":85,"Regina degli Arcieri":85,"Principe Minion":60,"Sorvegliante (Grand Warden)":60,"Campionessa Reale":30},
-  15: {"Re Barbaro":90,"Regina degli Arcieri":90,"Principe Minion":70,"Sorvegliante (Grand Warden)":65,"Campionessa Reale":40},
-  16: {"Re Barbaro":95,"Regina degli Arcieri":95,"Principe Minion":80,"Sorvegliante (Grand Warden)":70,"Campionessa Reale":45},
-  17: {"Re Barbaro":100,"Regina degli Arcieri":100,"Principe Minion":90,"Sorvegliante (Grand Warden)":75,"Campionessa Reale":50},
+  10: {"Re Barbaro":40,"Regina degli Arcieri":40,"Principe degli sgherri":20,"Sorvegliante (Grand Warden)":0,"Campionessa Reale":0},
+  11: {"Re Barbaro":50,"Regina degli Arcieri":50,"Principe degli sgherri":30,"Sorvegliante (Grand Warden)":20,"Campionessa Reale":0},
+  12: {"Re Barbaro":65,"Regina degli Arcieri":65,"Principe degli sgherri":40,"Sorvegliante (Grand Warden)":40,"Campionessa Reale":0},
+  13: {"Re Barbaro":75,"Regina degli Arcieri":75,"Principe degli sgherri":50,"Sorvegliante (Grand Warden)":50,"Campionessa Reale":25},
+  14: {"Re Barbaro":85,"Regina degli Arcieri":85,"Principe degli sgherri":60,"Sorvegliante (Grand Warden)":60,"Campionessa Reale":30},
+  15: {"Re Barbaro":90,"Regina degli Arcieri":90,"Principe degli sgherri":70,"Sorvegliante (Grand Warden)":65,"Campionessa Reale":40},
+  16: {"Re Barbaro":95,"Regina degli Arcieri":95,"Principe degli sgherri":80,"Sorvegliante (Grand Warden)":70,"Campionessa Reale":45},
+  17: {"Re Barbaro":100,"Regina degli Arcieri":100,"Principe degli sgherri":90,"Sorvegliante (Grand Warden)":75,"Campionessa Reale":50},
 };
 
 /* =========================================================
@@ -184,7 +184,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 8 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 4 },
     "Tesla Nascosta": { qty: 4, lvl: 8 },
-    "Torre delle Bombe": { qty: 2, lvl: 4 },
+    "Torre Bombardiera": { qty: 2, lvl: 4 },
     "Arco X (X-Bow)": { qty: 3, lvl: 3 },
     "Torre Infernale": { qty: 2, lvl: 3 },
     "Artiglieria Aquila": { qty: 0, lvl: 0 },
@@ -196,7 +196,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Cannone a palle rimbalzanti": { qty: 0, lvl: 0 },
     "Torre Multi-Ingranaggio (Long Range)": { qty: 0, lvl: 0 },
     "Sputafuoco": { qty: 0, lvl: 0 },
-    "Mura (sezioni)": { qty: 300, lvl: 11 },
+    "Mura (sezioni)": { qty: 275, lvl: 11 },
     "Bomba": { qty: 6, lvl: 6 },
     "Trappola a Molla": { qty: 5, lvl: 5 },
     "Bomba Gigante": { qty: 6, lvl: 6 },
@@ -231,7 +231,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 9 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 6 },
     "Tesla Nascosta": { qty: 5, lvl: 9 },
-    "Torre delle Bombe": { qty: 2, lvl: 6 },
+    "Torre Bombardiera": { qty: 2, lvl: 6 },
     "Arco X (X-Bow)": { qty: 3, lvl: 4 },
     "Torre Infernale": { qty: 2, lvl: 5 },
     "Artiglieria Aquila": { qty: 1, lvl: 1 },
@@ -278,7 +278,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 10 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 7 },
     "Tesla Nascosta": { qty: 5, lvl: 10 },
-    "Torre delle Bombe": { qty: 2, lvl: 7 },
+    "Torre Bombardiera": { qty: 2, lvl: 7 },
     "Arco X (X-Bow)": { qty: 4, lvl: 5 },
     "Torre Infernale": { qty: 2, lvl: 6 },
     "Artiglieria Aquila": { qty: 1, lvl: 3 },
@@ -325,7 +325,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 11 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 7 },
     "Tesla Nascosta": { qty: 5, lvl: 12 },
-    "Torre delle Bombe": { qty: 2, lvl: 8 },
+    "Torre Bombardiera": { qty: 2, lvl: 8 },
     "Arco X (X-Bow)": { qty: 4, lvl: 5 },
     "Torre Infernale": { qty: 2, lvl: 7 },
     "Artiglieria Aquila": { qty: 1, lvl: 4 },
@@ -337,7 +337,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Cannone a palle rimbalzanti": { qty: 0, lvl: 0 },
     "Torre Multi-Ingranaggio (Long Range)": { qty: 0, lvl: 0 },
     "Sputafuoco": { qty: 0, lvl: 0 },
-    "Mura (sezioni)": { qty: 325, lvl: 14 },
+    "Mura (sezioni)": { qty: 300, lvl: 14 },
     "Bomba": { qty: 9, lvl: 9 },
     "Trappola a Molla": { qty: 8, lvl: 8 },
     "Bomba Gigante": { qty: 7, lvl: 7 },
@@ -372,7 +372,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 12 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 7 },
     "Tesla Nascosta": { qty: 5, lvl: 13 },
-    "Torre delle Bombe": { qty: 2, lvl: 9 },
+    "Torre Bombardiera": { qty: 2, lvl: 9 },
     "Arco X (X-Bow)": { qty: 4, lvl: 6 },
     "Torre Infernale": { qty: 2, lvl: 8 },
     "Artiglieria Aquila": { qty: 1, lvl: 5 },
@@ -419,7 +419,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 13 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 7 },
     "Tesla Nascosta": { qty: 5, lvl: 14 },
-    "Torre delle Bombe": { qty: 2, lvl: 10 },
+    "Torre Bombardiera": { qty: 2, lvl: 10 },
     "Arco X (X-Bow)": { qty: 4, lvl: 7 },
     "Torre Infernale": { qty: 2, lvl: 9 },
     "Artiglieria Aquila": { qty: 1, lvl: 6 },
@@ -466,7 +466,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 14 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 8 },
     "Tesla Nascosta": { qty: 5, lvl: 15 },
-    "Torre delle Bombe": { qty: 2, lvl: 11 },
+    "Torre Bombardiera": { qty: 2, lvl: 11 },
     "Arco X (X-Bow)": { qty: 4, lvl: 11 },
     "Torre Infernale": { qty: 2, lvl: 10 },
     "Artiglieria Aquila": { qty: 1, lvl: 6 },
@@ -513,7 +513,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Difesa Aerea": { qty: 4, lvl: 15 },
     "Volano (Air Sweeper)": { qty: 2, lvl: 8 },
     "Tesla Nascosta": { qty: 5, lvl: 16 },
-    "Torre delle Bombe": { qty: 2, lvl: 12 },
+    "Torre Bombardiera": { qty: 2, lvl: 12 },
     "Arco X (X-Bow)": { qty: 4, lvl: 12 },
     "Torre Infernale": { qty: 2, lvl: 11 },
     "Artiglieria Aquila": { qty: 1, lvl: 7 },
@@ -543,7 +543,7 @@ const FARM_ORDER = [
   'Deposito d’Elisir','Deposito d’Oro','Deposito d’Elisir Nero',
   'Laboratorio','Accampamento','Caserma','Caserma nera','Castello del Clan','Casa degli Animali (Pet House)','Fabbro (Blacksmith)',
   'Mura (sezioni)',
-  'Torre dello Stregone','Torre delle Bombe','Tesla Nascosta',
+  'Torre dello Stregone','Torre Bombardiera','Tesla Nascosta',
   'Arco X (X-Bow)','Difesa Aerea','Torre degli Arcieri','Cannone','Mortaio','Volano (Air Sweeper)',
   'Artiglieria Aquila','Scagliapietre (Scattershot)','Torre Infernale','Torre degli Incantesimi','Monolite',
   'Torre Multi-Arciere','Cannone a palle rimbalzanti','Torre Multi-Ingranaggio (Long Range)','Sputafuoco',
@@ -553,10 +553,10 @@ const FARM_ORDER = [
 const WAR_ORDER = [
   'Laboratorio','Fabbrica incantesimi','Fabbrica incantesimi neri',
   'Accampamento','Castello del Clan',
-  'Re Barbaro','Regina degli Arcieri','Principe Minion','Sorvegliante (Grand Warden)','Campionessa Reale','Casa degli Animali (Pet House)',
+  'Re Barbaro','Regina degli Arcieri','Principe degli sgherri','Sorvegliante (Grand Warden)','Campionessa Reale','Casa degli Animali (Pet House)',
   'Artiglieria Aquila','Scagliapietre (Scattershot)','Torre Infernale','Arco X (X-Bow)','Tesla Nascosta',
   'Torre degli Incantesimi','Monolite',
-  'Difesa Aerea','Torre dello Stregone','Torre delle Bombe',
+  'Difesa Aerea','Torre dello Stregone','Torre Bombardiera',
   'Torre Multi-Arciere','Cannone a palle rimbalzanti','Torre Multi-Ingranaggio (Long Range)','Sputafuoco',
   'Volano (Air Sweeper)','Mortaio','Torre degli Arcieri','Cannone',
   'Capanna del Costruttore',
@@ -741,7 +741,7 @@ export default function Page(){
 
       {/* Input JSON + summary */}
       <section className="card">
-        <label className="label">Incolla qui il JSON del villaggio</label>
+        <label className="label">Incolla qui il JSON del villaggio (lo trovi in Impostazioni --> Altre Impostazioni --> scorri verso in basso fino a "Esporta i dati del villaggio in formato JSON"</label>
         <textarea className="textbox" value={raw} onChange={e=>setRaw(e.target.value)} placeholder='Accetta anche frammenti (es. "buildings2", "heroes2", "traps2")' />
         <div className="hint">{summary}</div>
       </section>
@@ -756,7 +756,7 @@ export default function Page(){
               <li><b>Risorse prima</b>: collettori/miniere/trivelle + depositi.</li>
               <li><b>Laboratorio sempre attivo</b> + accampamenti/caserme.</li>
               <li><b>Builder occupati</b>: usa i <i>muri</i> tra upgrade grossi.</li>
-              <li><b>Difese pro-risorse</b>: maghi, torre bombe, tesla.</li>
+              <li><b>Difese pro-risorse</b>: maghi, torre Bombardiera, tesla.</li>
             </ul>
           ):(
             <ul>
