@@ -333,19 +333,21 @@ export default function Page(){
     const thv=detectTH(json);
     setTH(thv);
 
-    // 1) separa EROI (solo heroes/heroes2, ID 280000xx)
-    const heroEntries = []
-      .concat(Array.isArray(json.heroes2)? json.heroes2 : [])
-      .concat(Array.isArray(json.heroes)?  json.heroes  : [])
-      .filter(it => typeof it?.data === 'number' && String(it.data).startsWith('280000'));
+   // 1) separa EROI (solo heroes/heroes2, ID 280000xx)
+type AnyRec = { data?: number; lvl?: number; cnt?: number };
+const heroEntries: AnyRec[] = []
+  .concat(Array.isArray(json.heroes2) ? (json.heroes2 as AnyRec[]) : [])
+  .concat(Array.isArray(json.heroes)  ? (json.heroes  as AnyRec[]) : [])
+  .filter((it: AnyRec) => typeof it?.data === 'number' && String(it.data!).startsWith('280000'));
 
-    // 2) il resto (difese/risorse/esercito/trappole) — niente pets
-    const otherEntries = []
-      .concat(Array.isArray(json.buildings2)? json.buildings2 : [])
-      .concat(Array.isArray(json.buildings)?  json.buildings  : [])
-      .concat(Array.isArray(json.traps2)?     json.traps2     : [])
-      .concat(Array.isArray(json.traps)?      json.traps      : [])
-      .filter(it => typeof it?.data === 'number');
+// 2) il resto (difese/risorse/esercito/trappole) — niente pets
+const otherEntries: AnyRec[] = []
+  .concat(Array.isArray(json.buildings2) ? (json.buildings2 as AnyRec[]) : [])
+  .concat(Array.isArray(json.buildings)  ? (json.buildings  as AnyRec[]) : [])
+  .concat(Array.isArray(json.traps2)     ? (json.traps2     as AnyRec[]) : [])
+  .concat(Array.isArray(json.traps)      ? (json.traps      as AnyRec[]) : [])
+  .filter((it: AnyRec) => typeof it?.data === 'number');
+
 
     // 3) aggregazione
     const agg:Record<string,{lvl:number;cnt:number}> = {};
