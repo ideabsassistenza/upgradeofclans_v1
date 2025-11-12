@@ -476,7 +476,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Artiglieria Aquila": { qty: 1, lvl: 7 },
     "Scagliapietre (Scattershot)": { qty: 2, lvl: 5 },
     "Capanna del Costruttore": { qty: 5, lvl: 6 },
-    "Torre degli Incantesimi": { qty: 2 lvl: 3 },
+    "Torre degli Incantesimi": { qty: 2, lvl: 3 },
     "Monolite": { qty: 1, lvl: 3 },
     "Torre Multi-Arciere": { qty: 2, lvl: 2 },
     "Cannone a palle rimbalzanti": { qty: 2, lvl: 2 },
