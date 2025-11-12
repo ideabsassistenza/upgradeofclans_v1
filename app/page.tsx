@@ -20,7 +20,7 @@ const IDMAP: Record<number, Meta> = {
   28000001:{name:'Regina degli Arcieri',cat:'hero'},
   28000002:{name:'Sorvegliante (Grand Warden)',cat:'hero'},
   28000004:{name:'Campionessa Reale',cat:'hero'},
-  28000005:{name:'Principe Minion',cat:'hero'},
+  28000006:{name:'Principe degli Sgherri',cat:'hero'},
   // Pets (solo presenza, non usati nei caps)
   73000000:{name:'L.A.S.S.I',cat:'pet'},
   73000001:{name:'Gufo Elettrico',cat:'pet'},
@@ -58,7 +58,7 @@ const IDMAP: Record<number, Meta> = {
   1000021:{name:'Arco X (X-Bow)',cat:'defense'},
   1000027:{name:'Torre Infernale',cat:'defense'},
   1000031:{name:'Artiglieria Aquila',cat:'defense'},
-  1000032:{name:'Torre delle Bombe',cat:'defense'},
+  1000032:{name:'Torre Bombardiera',cat:'defense'},
   1000067:{name:'Scagliapietre (Scattershot)',cat:'defense'},
   1000015:{name:'Capanna del Costruttore',cat:'defense'},
   1000072:{name:'Torre degli Incantesimi',cat:'defense'},
@@ -141,11 +141,11 @@ const CAPS: Record<number, Record<string, number>> = {
     "Castello del Clan": 6, "Miniera d’Oro": 13, "Collettore d’Elisir": 13, "Deposito d’Oro": 11, "Deposito d’Elisir": 12,
     "Trivella d’Elisir Nero": 7, "Deposito d’Elisir Nero": 6,
     "Cannone": 13, "Torre degli Arcieri": 13, "Mortaio": 8, "Torre dello Stregone": 9, "Difesa Aerea": 8, "Volano (Air Sweeper)": 4, "Tesla Nascosta": 8,
-    "Torre delle Bombe": 5, "Arco X (X-Bow)": 2, "Torre Infernale": 2, "Artiglieria Aquila": 0, "Scagliapietre (Scattershot)": 0,
+    "Torre Bombardiera": 5, "Arco X (X-Bow)": 2, "Torre Infernale": 2, "Artiglieria Aquila": 0, "Scagliapietre (Scattershot)": 0,
     "Capanna del Costruttore": 0, "Torre degli Incantesimi": 0, "Monolite": 0, "Torre Multi-Arciere": 0, "Cannone a palle rimbalzanti": 0, "Torre Multi-Ingranaggio (Long Range)": 0, "Sputafuoco": 0,
     "Mura (sezioni)": 300, "Bomba": 6, "Trappola a Molla": 5, "Bomba Gigante": 6, "Bomba Aerea": 4, "Mina Aerea a Ricerca": 3, "Trappola Scheletrica": 4, "Trappola Tornado": 0, "Giga Bomba (solo TH17)": 0,
     // HERO caps (immagine)
-    "Re Barbaro": 40, "Regina degli Arcieri": 40, "Principe Minion": 20, "Sorvegliante (Grand Warden)": 0, "Campionessa Reale": 0
+    "Re Barbaro": 40, "Regina degli Arcieri": 40, "Principe degli Sgherri": 20, "Sorvegliante (Grand Warden)": 0, "Campionessa Reale": 0
   },
   "11": {
     "Accampamento": 9, "Caserma": 13, "Caserma nera": 8, "Laboratorio": 9, "Fabbrica incantesimi": 6, "Fabbrica incantesimi neri": 5,
@@ -153,10 +153,10 @@ const CAPS: Record<number, Record<string, number>> = {
     "Castello del Clan": 7, "Miniera d’Oro": 14, "Collettore d’Elisir": 14, "Deposito d’Oro": 12, "Deposito d’Elisir": 12,
     "Trivella d’Elisir Nero": 8, "Deposito d’Elisir Nero": 7,
     "Cannone": 15, "Torre degli Arcieri": 15, "Mortaio": 10, "Torre dello Stregone": 10, "Difesa Aerea": 9, "Volano (Air Sweeper)": 6, "Tesla Nascosta": 9,
-    "Torre delle Bombe": 6, "Arco X (X-Bow)": 3, "Torre Infernale": 5, "Artiglieria Aquila": 1, "Scagliapietre (Scattershot)": 0,
+    "Torre Bombardiera": 6, "Arco X (X-Bow)": 3, "Torre Infernale": 5, "Artiglieria Aquila": 1, "Scagliapietre (Scattershot)": 0,
     "Capanna del Costruttore": 0, "Torre degli Incantesimi": 0, "Monolite": 0, "Torre Multi-Arciere": 0, "Cannone a palle rimbalzanti": 0, "Torre Multi-Ingranaggio (Long Range)": 0, "Sputafuoco": 0,
     "Mura (sezioni)": 300, "Bomba": 7, "Trappola a Molla": 6, "Bomba Gigante": 6, "Bomba Aerea": 5, "Mina Aerea a Ricerca": 3, "Trappola Scheletrica": 4, "Trappola Tornado": 2, "Giga Bomba (solo TH17)": 0,
-    "Re Barbaro": 50, "Regina degli Arcieri": 50, "Principe Minion": 30, "Sorvegliante (Grand Warden)": 20, "Campionessa Reale": 0
+    "Re Barbaro": 50, "Regina degli Arcieri": 50, "Principe degli Sgherri": 30, "Sorvegliante (Grand Warden)": 20, "Campionessa Reale": 0
   },
   "12": {
     "Accampamento": 10, "Caserma": 14, "Caserma nera": 9, "Laboratorio": 10, "Fabbrica incantesimi": 6, "Fabbrica incantesimi neri": 6,
@@ -164,10 +164,10 @@ const CAPS: Record<number, Record<string, number>> = {
     "Castello del Clan": 8, "Miniera d’Oro": 15, "Collettore d’Elisir": 15, "Deposito d’Oro": 13, "Deposito d’Elisir": 13,
     "Trivella d’Elisir Nero": 9, "Deposito d’Elisir Nero": 8,
     "Cannone": 17, "Torre degli Arcieri": 17, "Mortaio": 12, "Torre dello Stregone": 11, "Difesa Aerea": 10, "Volano (Air Sweeper)": 7, "Tesla Nascosta": 10,
-    "Torre delle Bombe": 7, "Arco X (X-Bow)": 4, "Torre Infernale": 6, "Artiglieria Aquila": 3, "Scagliapietre (Scattershot)": 0,
+    "Torre Bombardiera": 7, "Arco X (X-Bow)": 4, "Torre Infernale": 6, "Artiglieria Aquila": 3, "Scagliapietre (Scattershot)": 0,
     "Capanna del Costruttore": 0, "Torre degli Incantesimi": 0, "Monolite": 0, "Torre Multi-Arciere": 0, "Cannone a palle rimbalzanti": 0, "Torre Multi-Ingranaggio (Long Range)": 0, "Sputafuoco": 0,
     "Mura (sezioni)": 300, "Bomba": 8, "Trappola a Molla": 7, "Bomba Gigante": 7, "Bomba Aerea": 6, "Mina Aerea a Ricerca": 3, "Trappola Scheletrica": 4, "Trappola Tornado": 3, "Giga Bomba (solo TH17)": 0,
-    "Re Barbaro": 65, "Regina degli Arcieri": 65, "Principe Minion": 40, "Sorvegliante (Grand Warden)": 40, "Campionessa Reale": 25
+    "Re Barbaro": 65, "Regina degli Arcieri": 65, "Principe degli Sgherri": 40, "Sorvegliante (Grand Warden)": 40, "Campionessa Reale": 25
   },
   "13": {
     "Accampamento": 11, "Caserma": 15, "Caserma nera": 10, "Laboratorio": 11, "Fabbrica incantesimi": 7, "Fabbrica incantesimi neri": 6,
@@ -175,10 +175,10 @@ const CAPS: Record<number, Record<string, number>> = {
     "Castello del Clan": 9, "Miniera d’Oro": 15, "Collettore d’Elisir": 15, "Deposito d’Oro": 14, "Deposito d’Elisir": 14,
     "Trivella d’Elisir Nero": 9, "Deposito d’Elisir Nero": 8,
     "Cannone": 19, "Torre degli Arcieri": 19, "Mortaio": 13, "Torre dello Stregone": 13, "Difesa Aerea": 11, "Volano (Air Sweeper)": 7, "Tesla Nascosta": 12,
-    "Torre delle Bombe": 8, "Arco X (X-Bow)": 5, "Torre Infernale": 7, "Artiglieria Aquila": 4, "Scagliapietre (Scattershot)": 2,
+    "Torre Bombardiera": 8, "Arco X (X-Bow)": 5, "Torre Infernale": 7, "Artiglieria Aquila": 4, "Scagliapietre (Scattershot)": 2,
     "Capanna del Costruttore": 0, "Torre degli Incantesimi": 0, "Monolite": 0, "Torre Multi-Arciere": 0, "Cannone a palle rimbalzanti": 0, "Torre Multi-Ingranaggio (Long Range)": 0, "Sputafuoco": 0,
     "Mura (sezioni)": 325, "Bomba": 9, "Trappola a Molla": 8, "Bomba Gigante": 7, "Bomba Aerea": 8, "Mina Aerea a Ricerca": 4, "Trappola Scheletrica": 4, "Trappola Tornado": 3, "Giga Bomba (solo TH17)": 0,
-    "Re Barbaro": 75, "Regina degli Arcieri": 75, "Principe Minion": 50, "Sorvegliante (Grand Warden)": 50, "Campionessa Reale": 30
+    "Re Barbaro": 75, "Regina degli Arcieri": 75, "Principe degli Sgherri": 50, "Sorvegliante (Grand Warden)": 50, "Campionessa Reale": 30
   },
   "14": {
     "Accampamento": 11, "Caserma": 16, "Caserma nera": 11, "Laboratorio": 12, "Fabbrica incantesimi": 7, "Fabbrica incantesimi neri": 6,
@@ -186,10 +186,10 @@ const CAPS: Record<number, Record<string, number>> = {
     "Castello del Clan": 10, "Miniera d’Oro": 16, "Collettore d’Elisir": 16, "Deposito d’Oro": 15, "Deposito d’Elisir": 15,
     "Trivella d’Elisir Nero": 10, "Deposito d’Elisir Nero": 9,
     "Cannone": 20, "Torre degli Arcieri": 20, "Mortaio": 14, "Torre dello Stregone": 14, "Difesa Aerea": 12, "Volano (Air Sweeper)": 7, "Tesla Nascosta": 13,
-    "Torre delle Bombe": 9, "Arco X (X-Bow)": 6, "Torre Infernale": 8, "Artiglieria Aquila": 5, "Scagliapietre (Scattershot)": 3,
+    "Torre Bombardiera": 9, "Arco X (X-Bow)": 6, "Torre Infernale": 8, "Artiglieria Aquila": 5, "Scagliapietre (Scattershot)": 3,
     "Capanna del Costruttore": 4, "Torre degli Incantesimi": 0, "Monolite": 0, "Torre Multi-Arciere": 0, "Cannone a palle rimbalzanti": 0, "Torre Multi-Ingranaggio (Long Range)": 0, "Sputafuoco": 0,
     "Mura (sezioni)": 15, "Bomba": 10, "Trappola a Molla": 9, "Bomba Gigante": 8, "Bomba Aerea": 9, "Mina Aerea a Ricerca": 4, "Trappola Scheletrica": 4, "Trappola Tornado": 3, "Giga Bomba (solo TH17)": 0,
-    "Re Barbaro": 80, "Regina degli Arcieri": 80, "Principe Minion": 60, "Sorvegliante (Grand Warden)": 55, "Campionessa Reale": 35
+    "Re Barbaro": 80, "Regina degli Arcieri": 80, "Principe degli Sgherri": 60, "Sorvegliante (Grand Warden)": 55, "Campionessa Reale": 35
   },
   "15": {
     "Accampamento": 12, "Caserma": 17, "Caserma nera": 11, "Laboratorio": 13, "Fabbrica incantesimi": 8, "Fabbrica incantesimi neri": 6,
@@ -197,10 +197,10 @@ const CAPS: Record<number, Record<string, number>> = {
     "Castello del Clan": 11, "Miniera d’Oro": 16, "Collettore d’Elisir": 16, "Deposito d’Oro": 16, "Deposito d’Elisir": 16,
     "Trivella d’Elisir Nero": 11, "Deposito d’Elisir Nero": 10,
     "Cannone": 21, "Torre degli Arcieri": 21, "Mortaio": 15, "Torre dello Stregone": 15, "Difesa Aerea": 13, "Volano (Air Sweeper)": 7, "Tesla Nascosta": 14,
-    "Torre delle Bombe": 10, "Arco X (X-Bow)": 7, "Torre Infernale": 9, "Artiglieria Aquila": 6, "Scagliapietre (Scattershot)": 4,
+    "Torre Bombardiera": 10, "Arco X (X-Bow)": 7, "Torre Infernale": 9, "Artiglieria Aquila": 6, "Scagliapietre (Scattershot)": 4,
     "Capanna del Costruttore": 5, "Torre degli Incantesimi": 3, "Monolite": 2, "Torre Multi-Arciere": 1, "Cannone a palle rimbalzanti": 1, "Torre Multi-Ingranaggio (Long Range)": 1, "Sputafuoco": 1,
     "Mura (sezioni)": 16, "Bomba": 11, "Trappola a Molla": 10, "Bomba Gigante": 9, "Bomba Aerea": 10, "Mina Aerea a Ricerca": 5, "Trappola Scheletrica": 4, "Trappola Tornado": 3, "Giga Bomba (solo TH17)": 0,
-    "Re Barbaro": 90, "Regina degli Arcieri": 90, "Principe Minion": 70, "Sorvegliante (Grand Warden)": 60, "Campionessa Reale": 40
+    "Re Barbaro": 90, "Regina degli Arcieri": 90, "Principe degli Sgherri": 70, "Sorvegliante (Grand Warden)": 60, "Campionessa Reale": 40
   },
   "16": {
     "Accampamento": 12, "Caserma": 18, "Caserma nera": 11, "Laboratorio": 14, "Fabbrica incantesimi": 8, "Fabbrica incantesimi neri": 6,
@@ -208,10 +208,10 @@ const CAPS: Record<number, Record<string, number>> = {
     "Castello del Clan": 12, "Miniera d’Oro": 16, "Collettore d’Elisir": 16, "Deposito d’Oro": 17, "Deposito d’Elisir": 17,
     "Trivella d’Elisir Nero": 11, "Deposito d’Elisir Nero": 11,
     "Cannone": 22, "Torre degli Arcieri": 22, "Mortaio": 16, "Torre dello Stregone": 16, "Difesa Aerea": 14, "Volano (Air Sweeper)": 8, "Tesla Nascosta": 15,
-    "Torre delle Bombe": 11, "Arco X (X-Bow)": 11, "Torre Infernale": 10, "Artiglieria Aquila": 6, "Scagliapietre (Scattershot)": 4,
+    "Torre Bombardiera": 11, "Arco X (X-Bow)": 11, "Torre Infernale": 10, "Artiglieria Aquila": 6, "Scagliapietre (Scattershot)": 4,
     "Capanna del Costruttore": 5, "Torre degli Incantesimi": 4, "Monolite": 3, "Torre Multi-Arciere": 2, "Cannone a palle rimbalzanti": 2, "Torre Multi-Ingranaggio (Long Range)": 2, "Sputafuoco": 2,
     "Mura (sezioni)": 17, "Bomba": 12, "Trappola a Molla": 10, "Bomba Gigante": 10, "Bomba Aerea": 11, "Mina Aerea a Ricerca": 6, "Trappola Scheletrica": 4, "Trappola Tornado": 3, "Giga Bomba (solo TH17)": 0,
-    "Re Barbaro": 95, "Regina degli Arcieri": 95, "Principe Minion": 80, "Sorvegliante (Grand Warden)": 70, "Campionessa Reale": 45
+    "Re Barbaro": 95, "Regina degli Arcieri": 95, "Principe degli Sgherri": 80, "Sorvegliante (Grand Warden)": 70, "Campionessa Reale": 45
   },
   "17": {
     "Accampamento": 12, "Caserma": 18, "Caserma nera": 11, "Laboratorio": 15, "Fabbrica incantesimi": 8, "Fabbrica incantesimi neri": 6,
@@ -219,10 +219,10 @@ const CAPS: Record<number, Record<string, number>> = {
     "Castello del Clan": 12, "Miniera d’Oro": 18, "Collettore d’Elisir": 17, "Deposito d’Oro": 18, "Deposito d’Elisir": 18,
     "Trivella d’Elisir Nero": 12, "Deposito d’Elisir Nero": 12,
     "Cannone": 23, "Torre degli Arcieri": 23, "Mortaio": 17, "Torre dello Stregone": 17, "Difesa Aerea": 15, "Volano (Air Sweeper)": 8, "Tesla Nascosta": 16,
-    "Torre delle Bombe": 12, "Arco X (X-Bow)": 12, "Torre Infernale": 11, "Artiglieria Aquila": 7, "Scagliapietre (Scattershot)": 5,
+    "Torre Bombardiera": 12, "Arco X (X-Bow)": 12, "Torre Infernale": 11, "Artiglieria Aquila": 7, "Scagliapietre (Scattershot)": 5,
     "Capanna del Costruttore": 5, "Torre degli Incantesimi": 5, "Monolite": 4, "Torre Multi-Arciere": 3, "Cannone a palle rimbalzanti": 3, "Torre Multi-Ingranaggio (Long Range)": 3, "Sputafuoco": 3,
     "Mura (sezioni)": 18, "Bomba": 13, "Trappola a Molla": 11, "Bomba Gigante": 11, "Bomba Aerea": 12, "Mina Aerea a Ricerca": 7, "Trappola Scheletrica": 4, "Trappola Tornado": 3, "Giga Bomba (solo TH17)": 3,
-    "Re Barbaro": 100, "Regina degli Arcieri": 100, "Principe Minion": 90, "Sorvegliante (Grand Warden)": 75, "Campionessa Reale": 50
+    "Re Barbaro": 100, "Regina degli Arcieri": 100, "Principe degli Sgherri": 90, "Sorvegliante (Grand Warden)": 75, "Campionessa Reale": 50
   }
 };
 
@@ -232,7 +232,7 @@ const FARM_ORDER = [
   'Deposito d’Elisir','Deposito d’Oro','Deposito d’Elisir Nero',
   'Laboratorio','Accampamento','Caserma','Caserma nera','Castello del Clan','Casa degli Animali (Pet House)','Fabbro (Blacksmith)',
   'Mura (sezioni)',
-  'Torre dello Stregone','Torre delle Bombe','Tesla Nascosta',
+  'Torre dello Stregone','Torre Bombardiera','Tesla Nascosta',
   'Arco X (X-Bow)','Difesa Aerea','Torre degli Arcieri','Cannone','Mortaio','Volano (Air Sweeper)',
   'Artiglieria Aquila','Scagliapietre (Scattershot)','Torre Infernale','Torre degli Incantesimi','Monolite',
   'Torre Multi-Arciere','Cannone a palle rimbalzanti','Torre Multi-Ingranaggio (Long Range)','Sputafuoco',
@@ -242,10 +242,10 @@ const FARM_ORDER = [
 const WAR_ORDER = [
   'Laboratorio','Fabbrica incantesimi','Fabbrica incantesimi neri',
   'Accampamento','Castello del Clan',
-  'Re Barbaro','Regina degli Arcieri','Principe Minion','Sorvegliante (Grand Warden)','Campionessa Reale','Casa degli Animali (Pet House)',
+  'Re Barbaro','Regina degli Arcieri','Principe degli Sgherri','Sorvegliante (Grand Warden)','Campionessa Reale','Casa degli Animali (Pet House)',
   'Artiglieria Aquila','Scagliapietre (Scattershot)','Torre Infernale','Arco X (X-Bow)','Tesla Nascosta',
   'Torre degli Incantesimi','Monolite',
-  'Difesa Aerea','Torre dello Stregone','Torre delle Bombe',
+  'Difesa Aerea','Torre dello Stregone','Torre Bombardiera',
   'Torre Multi-Arciere','Cannone a palle rimbalzanti','Torre Multi-Ingranaggio (Long Range)','Sputafuoco',
   'Volano (Air Sweeper)','Mortaio','Torre degli Arcieri','Cannone',
   'Capanna del Costruttore',
@@ -382,13 +382,13 @@ export default function Page(){
               <li><b>Risorse prima</b>: collettori/miniere/trivelle + depositi.</li>
               <li><b>Laboratorio sempre attivo</b> + accampamenti/caserme.</li>
               <li><b>Builder occupati</b>: usa i <i>muri</i> tra upgrade grossi.</li>
-              <li><b>Difese pro-risorse</b>: maghi, torre bombe, tesla.</li>
+              <li><b>Difese pro-risorse</b>: maghi, torre bombardiera, tesla.</li>
             </ul>
           ):(
             <ul>
               <li><b>Attacco prima</b>: laboratorio + fabbriche (spell/dark spell).</li>
               <li><b>Esercito</b>: accampamenti e <i>Castello del Clan</i>.</li>
-              <li><b>Eroi</b>: livelli chiave (King/Queen/Minion/Warden/RC).</li>
+              <li><b>Eroi</b>: livelli chiave (King/Queen/Sgherro/Warden/RC).</li>
               <li><b>Difese WAR</b>: Aquila, Scatter, Infernali, Arco X, Tesla, Spell Tower, Monolite.</li>
             </ul>
           )}
@@ -402,7 +402,7 @@ export default function Page(){
     {rows.map((r,i)=>{
       const delta = Math.max(0, r.max - r.have);
       const pct = Math.max(0, Math.min(100, Math.round((r.have / r.max) * 100)));
-      const isHero = /re barbaro|regina|sorvegliante|campionessa|principe minion/i.test(r.name);
+      const isHero = /re barbaro|regina|sorvegliante|campionessa|principe degli sgherri/i.test(r.name);
       return (
         <li key={i} className={`row ${isHero?'hero':''}`}>
           <div className="row-main">
