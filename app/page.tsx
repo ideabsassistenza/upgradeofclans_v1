@@ -146,10 +146,10 @@ const IDMAP: Record<number, Meta> = {
 const CAPS_HERO: Record<number, Record<string, number>> = {
   10: {"Re Barbaro":40,"Regina degli Arcieri":40,"Principe Minion":20,"Sorvegliante (Grand Warden)":0,"Campionessa Reale":0},
   11: {"Re Barbaro":50,"Regina degli Arcieri":50,"Principe Minion":30,"Sorvegliante (Grand Warden)":20,"Campionessa Reale":0},
-  12: {"Re Barbaro":65,"Regina degli Arcieri":65,"Principe Minion":40,"Sorvegliante (Grand Warden)":40,"Campionessa Reale":25},
-  13: {"Re Barbaro":75,"Regina degli Arcieri":75,"Principe Minion":50,"Sorvegliante (Grand Warden)":50,"Campionessa Reale":30},
-  14: {"Re Barbaro":80,"Regina degli Arcieri":80,"Principe Minion":60,"Sorvegliante (Grand Warden)":55,"Campionessa Reale":35},
-  15: {"Re Barbaro":90,"Regina degli Arcieri":90,"Principe Minion":70,"Sorvegliante (Grand Warden)":60,"Campionessa Reale":40},
+  12: {"Re Barbaro":65,"Regina degli Arcieri":65,"Principe Minion":40,"Sorvegliante (Grand Warden)":40,"Campionessa Reale":0},
+  13: {"Re Barbaro":75,"Regina degli Arcieri":75,"Principe Minion":50,"Sorvegliante (Grand Warden)":50,"Campionessa Reale":25},
+  14: {"Re Barbaro":85,"Regina degli Arcieri":85,"Principe Minion":60,"Sorvegliante (Grand Warden)":60,"Campionessa Reale":30},
+  15: {"Re Barbaro":90,"Regina degli Arcieri":90,"Principe Minion":70,"Sorvegliante (Grand Warden)":65,"Campionessa Reale":40},
   16: {"Re Barbaro":95,"Regina degli Arcieri":95,"Principe Minion":80,"Sorvegliante (Grand Warden)":70,"Campionessa Reale":45},
   17: {"Re Barbaro":100,"Regina degli Arcieri":100,"Principe Minion":90,"Sorvegliante (Grand Warden)":75,"Campionessa Reale":50},
 };
