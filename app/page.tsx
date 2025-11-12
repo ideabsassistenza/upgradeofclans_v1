@@ -741,7 +741,7 @@ export default function Page(){
 
       {/* Input JSON + summary */}
       <section className="card">
-        <label className="label">Incolla qui il JSON del villaggio (lo trovi in Impostazioni --> Altre Impostazioni --> scorri verso in basso fino a "Esporta i dati del villaggio in formato JSON"</label>
+        <label className="label">Incolla qui il JSON del villaggio</label>
         <textarea className="textbox" value={raw} onChange={e=>setRaw(e.target.value)} placeholder='Accetta anche frammenti (es. "buildings2", "heroes2", "traps2")' />
         <div className="hint">{summary}</div>
       </section>
