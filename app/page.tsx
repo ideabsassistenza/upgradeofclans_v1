@@ -6,8 +6,8 @@ import React, { useEffect, useRef, useState } from 'react';
    - Parser tollerante input JSON (frammenti o oggetti completi)
    - Rilevamento TH
    - ID→Nome in italiano (incluso Principe Minion ID 28000006)
-   - **CAPS Strutture con quantità + livello max (qty + lvl) per TH10–TH17**
-   - Eroi: invariati (usiamo i cap livello già presenti)
+   - **CAPS Strutture con quantità + livello max (qty + lvl) per TH10–TH17)**
+   - Eroi: invariati (cap livello)
    - Modalità FARM / WAR con ordinamento consigli
    - UI pulita con banner /public/banner.png
    - Esclusi equipaggiamenti eroi e Base del Costruttore
@@ -141,7 +141,7 @@ const IDMAP: Record<number, Meta> = {
 };
 
 /* =========================================================
-   CAPS — Eroi: lasciamo i cap livello (già corretti nel tuo file)
+   CAPS — Eroi (invariati)
    ========================================================= */
 const CAPS_HERO: Record<number, Record<string, number>> = {
   10: {"Re Barbaro":40,"Regina degli Arcieri":40,"Principe Minion":20,"Sorvegliante (Grand Warden)":0,"Campionessa Reale":0},
@@ -155,103 +155,387 @@ const CAPS_HERO: Record<number, Record<string, number>> = {
 };
 
 /* =========================================================
-   CAPS — Strutture: **qty + lvl** per ogni TH (TH10→TH17)
-   NOTA: i dati vengono caricati da una tabella testuale nel formato
-         "quantità – Liv. X". Questo ti permette di incollare 1:1
-         la tabella dell'immagine e avere i cap esatti.
+   CAPS — Strutture (qty + lvl) per TH10→TH17
+   Generati dal tuo Excel Riepilogo_Structures_TH10-17_v4.xlsx
    ========================================================= */
-
-/* Incolla qui tutta la tabella (header + righe). Separatori accettati: TAB, ; o , */
-const RAW_TABLE = `
-Edificio/Eroe	TH10	TH11	TH12	TH13	TH14	TH15	TH16	TH17
-Accampamento	4 – Liv. 8	4 – Liv. 9	4 – Liv. 10	4 – Liv. 11	4 – Liv. 12	4 – Liv. 13	4 – Liv. 14	4 – Liv. 12
-Caserma	1 – Liv. 12	1 – Liv. 13	1 – Liv. 14	1 – Liv. 14	1 – Liv. 15	1 – Liv. 16	1 – Liv. 17	1 – Liv. 18
-Caserma nera	1 – Liv. 8	1 – Liv. 9	1 – Liv. 10	1 – Liv. 11	1 – Liv. 12	1 – Liv. 12	1 – Liv. 12	1 – Liv. 12
-Laboratorio	1 – Liv. 8	1 – Liv. 9	1 – Liv. 10	1 – Liv. 11	1 – Liv. 12	1 – Liv. 13	1 – Liv. 14	1 – Liv. 15
-Fabbrica incantesimi	1 – Liv. 5	1 – Liv. 6	1 – Liv. 6	1 – Liv. 7	1 – Liv. 7	1 – Liv. 8	1 – Liv. 8	1 – Liv. 8
-Fabbrica incantesimi neri	1 – Liv. 5	1 – Liv. 5	1 – Liv. 6	1 – Liv. 6	1 – Liv. 6	1 – Liv. 6	1 – Liv. 6	1 – Liv. 6
-Officina d’assedio (Workshop)	–	–	1 – Liv. 3	1 – Liv. 5	1 – Liv. 6	1 – Liv. 7	1 – Liv. 7	1 – Liv. 7
-Fabbro (Blacksmith)	1 – Liv. 3	1 – Liv. 4	1 – Liv. 5	1 – Liv. 6	1 – Liv. 7	1 – Liv. 8	1 – Liv. 9	1 – Liv. 9
-Sala degli Eroi (Hero Hall)	1 – Liv. 4	1 – Liv. 5	1 – Liv. 6	1 – Liv. 7	1 – Liv. 8	1 – Liv. 9	1 – Liv. 10	1 – Liv. 11
-Casa degli Animali (Pet House)	–	–	–	–	1 – Liv. 4	1 – Liv. 8	1 – Liv. 10	1 – Liv. 11
-Castello del Clan	1 – Liv. 6	1 – Liv. 7	1 – Liv. 8	1 – Liv. 9	1 – Liv. 10	1 – Liv. 11	1 – Liv. 12	1 – Liv. 12
-Miniera d’Oro	7 – Liv. 13	7 – Liv. 14	7 – Liv. 15	7 – Liv. 15	7 – Liv. 16	7 – Liv. 16	7 – Liv. 16	7 – Liv. 18
-Collettore d’Elisir	7 – Liv. 13	7 – Liv. 14	7 – Liv. 15	7 – Liv. 15	7 – Liv. 16	7 – Liv. 16	7 – Liv. 16	7 – Liv. 17
-Deposito d’Oro	4 – Liv. 11	4 – Liv. 12	4 – Liv. 13	4 – Liv. 14	4 – Liv. 15	4 – Liv. 16	4 – Liv. 17	4 – Liv. 18
-Deposito d’Elisir	4 – Liv. 12	4 – Liv. 12	4 – Liv. 13	4 – Liv. 14	4 – Liv. 15	4 – Liv. 16	4 – Liv. 17	4 – Liv. 18
-Trivella d’Elisir Nero	3 – Liv. 7	3 – Liv. 8	3 – Liv. 9	3 – Liv. 9	3 – Liv. 10	3 – Liv. 11	3 – Liv. 11	3 – Liv. 12
-Deposito d’Elisir Nero	1 – Liv. 6	1 – Liv. 7	1 – Liv. 8	1 – Liv. 8	1 – Liv. 9	1 – Liv. 10	1 – Liv. 11	1 – Liv. 12
-Cannone	6 – Liv. 13	7 – Liv. 15	7 – Liv. 17	7 – Liv. 19	8 – Liv. 20	8 – Liv. 21	8 – Liv. 22	8 – Liv. 23
-Torre degli Arcieri	7 – Liv. 13	8 – Liv. 15	8 – Liv. 17	8 – Liv. 19	8 – Liv. 20	8 – Liv. 21	8 – Liv. 22	8 – Liv. 23
-Mortaio	4 – Liv. 8	4 – Liv. 10	4 – Liv. 12	4 – Liv. 13	4 – Liv. 14	4 – Liv. 15	4 – Liv. 16	4 – Liv. 17
-Torre dello Stregone	4 – Liv. 9	5 – Liv. 10	5 – Liv. 11	5 – Liv. 13	5 – Liv. 14	5 – Liv. 15	5 – Liv. 16	5 – Liv. 17
-Difesa Aerea	4 – Liv. 8	4 – Liv. 9	4 – Liv. 10	4 – Liv. 11	4 – Liv. 12	4 – Liv. 13	4 – Liv. 14	4 – Liv. 15
-Volano (Air Sweeper)	2 – Liv. 4	2 – Liv. 6	2 – Liv. 7	2 – Liv. 7	2 – Liv. 7	2 – Liv. 7	2 – Liv. 8	2 – Liv. 8
-Tesla Nascosta	4 – Liv. 8	5 – Liv. 9	5 – Liv. 10	5 – Liv. 12	5 – Liv. 13	5 – Liv. 14	5 – Liv. 15	5 – Liv. 16
-Torre delle Bombe	2 – Liv. 4	2 – Liv. 6	2 – Liv. 7	2 – Liv. 8	2 – Liv. 9	2 – Liv. 10	2 – Liv. 11	2 – Liv. 12
-Arco X (X-Bow)	3 – Liv. 3	3 – Liv. 4	4 – Liv. 5	4 – Liv. 5	4 – Liv. 6	4 – Liv. 7	4 – Liv. 11	4 – Liv. 12
-Torre Infernale	2 – Liv. 3	2 – Liv. 5	2 – Liv. 6	2 – Liv. 7	2 – Liv. 8	2 – Liv. 9	2 – Liv. 10	2 – Liv. 11
-Artiglieria Aquila	–	1 – Liv. 1	1 – Liv. 3	1 – Liv. 4	1 – Liv. 5	1 – Liv. 6	1 – Liv. 6	1 – Liv. 7
-Scagliapietre (Scattershot)	–	–	–	2 – Liv. 2	2 – Liv. 3	2 – Liv. 4	2 – Liv. 4	2 – Liv. 5
-Capanna del Costruttore	–	–	–	–	4 – Liv. 4	5 – Liv. 5	5 – Liv. 5	5 – Liv. 5
-Torre degli Incantesimi	–	–	–	–	–	3 – Liv. 3	4 – Liv. 4	5 – Liv. 5
-Monolite	–	–	–	–	–	2 – Liv. 2	3 – Liv. 3	4 – Liv. 4
-Torre Multi-Arciere	–	–	–	–	–	1 – Liv. 1	2 – Liv. 2	3 – Liv. 3
-Cannone a palle rimbalzanti	–	–	–	–	–	1 – Liv. 1	2 – Liv. 2	3 – Liv. 3
-Torre Multi-Ingranaggio (Long Range)	–	–	–	–	–	1 – Liv. 1	2 – Liv. 2	3 – Liv. 3
-Sputafuoco	–	–	–	–	–	1 – Liv. 1	2 – Liv. 2	3 – Liv. 3
-Mura (sezioni)	300 – Liv. 11	300 – Liv. 12	300 – Liv. 13	325 – Liv. 14	325 – Liv. 15	325 – Liv. 16	325 – Liv. 17	325 – Liv. 18
-Bomba	6 – Liv. 6	7 – Liv. 7	8 – Liv. 8	9 – Liv. 9	10 – Liv. 10	11 – Liv. 11	12 – Liv. 12	13 – Liv. 13
-Trappola a Molla	5 – Liv. 5	6 – Liv. 6	7 – Liv. 7	8 – Liv. 8	9 – Liv. 9	10 – Liv. 10	10 – Liv. 10	11 – Liv. 11
-Bomba Gigante	6 – Liv. 6	6 – Liv. 6	7 – Liv. 7	7 – Liv. 7	8 – Liv. 8	9 – Liv. 9	10 – Liv. 10	11 – Liv. 11
-Bomba Aerea	4 – Liv. 4	5 – Liv. 5	6 – Liv. 6	8 – Liv. 8	9 – Liv. 9	10 – Liv. 10	11 – Liv. 11	12 – Liv. 12
-Mina Aerea a Ricerca	3 – Liv. 3	3 – Liv. 3	3 – Liv. 3	4 – Liv. 4	4 – Liv. 4	5 – Liv. 5	6 – Liv. 6	7 – Liv. 7
-Trappola Scheletrica	4 – Liv. 4	4 – Liv. 4	4 – Liv. 4	4 – Liv. 4	4 – Liv. 4	4 – Liv. 4	4 – Liv. 4	4 – Liv. 4
-Trappola Tornado	–	2 – Liv. 2	3 – Liv. 3	3 – Liv. 3	3 – Liv. 3	3 – Liv. 3	3 – Liv. 3	3 – Liv. 3
-Giga Bomba (solo TH17)	–	–	–	–	–	–	–	3 – Liv. 3
-`.trim();
-
-/* Helpers parsing celle tipo "2 – Liv. 4" o "–" */
-function parseCell(cell: string): Cap {
-  const s = (cell || '').trim().replace(/--/g,'–').replace(/-/g,'–');
-  if (!s || s === '–') return { qty: 0, lvl: 0 };
-  const qm = s.match(/^(\d+)\s*[\-–]\s*Liv\.\s*(\d+)/i);
-  if (qm) return { qty: Number(qm[1]), lvl: Number(qm[2]) };
-  const lm = s.match(/Liv\.\s*(\d+)/i);
-  if (lm) return { qty: 0, lvl: Number(lm[1]) };
-  return { qty: 0, lvl: 0 };
-}
-
-/* Converte RAW_TABLE → CAPS2 per ogni TH */
-function buildCaps2FromRaw(raw: string): Record<TH, CapsByName> {
-  const lines = raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  const header = lines[0].split(/\t|;|,/).map(s=>s.trim());
-  const idxNome = 0;
-  const thIdx: Record<TH, number> = {} as any;
-  header.forEach((h,i)=>{
-    const k = h.replace(/\s+/g,'').toUpperCase();
-    THS.forEach(th=>{
-      if (k === `TH${th}`) thIdx[th] = i;
-    });
-  });
-
-  const out: Record<TH, CapsByName> = Object.fromEntries(THS.map(th=>[th,{}])) as any;
-
-  for (let i=1;i<lines.length;i++){
-    const cols = lines[i].split(/\t|;|,/).map(s=>s.trim());
-    const name = cols[idxNome];
-    if (!name) continue;
-    THS.forEach(th=>{
-      const idx = thIdx[th];
-      const cap = parseCell(cols[idx] ?? '–');
-      out[th][name] = cap;
-    });
+const CAPS2: Record<TH, CapsByName> = {
+  10: {
+    "Accampamento": { qty: 4, lvl: 8 },
+    "Caserma": { qty: 1, lvl: 12 },
+    "Caserma nera": { qty: 1, lvl: 7 },
+    "Laboratorio": { qty: 1, lvl: 8 },
+    "Fabbrica incantesimi": { qty: 1, lvl: 5 },
+    "Fabbrica incantesimi neri": { qty: 1, lvl: 5 },
+    "Officina d’assedio (Workshop)": { qty: 0, lvl: 0 },
+    "Fabbro (Blacksmith)": { qty: 1, lvl: 3 },
+    "Sala degli Eroi (Hero Hall)": { qty: 1, lvl: 4 },
+    "Casa degli Animali (Pet House)": { qty: 0, lvl: 0 },
+    "Castello del Clan": { qty: 1, lvl: 6 },
+    "Miniera d’Oro": { qty: 7, lvl: 13 },
+    "Collettore d’Elisir": { qty: 7, lvl: 13 },
+    "Deposito d’Oro": { qty: 4, lvl: 11 },
+    "Deposito d’Elisir": { qty: 4, lvl: 12 },
+    "Trivella d’Elisir Nero": { qty: 3, lvl: 7 },
+    "Deposito d’Elisir Nero": { qty: 1, lvl: 6 },
+    "Cannone": { qty: 6, lvl: 13 },
+    "Torre degli Arcieri": { qty: 7, lvl: 13 },
+    "Mortaio": { qty: 4, lvl: 8 },
+    "Torre dello Stregone": { qty: 4, lvl: 9 },
+    "Difesa Aerea": { qty: 4, lvl: 8 },
+    "Volano (Air Sweeper)": { qty: 2, lvl: 4 },
+    "Tesla Nascosta": { qty: 4, lvl: 8 },
+    "Torre delle Bombe": { qty: 2, lvl: 4 },
+    "Arco X (X-Bow)": { qty: 3, lvl: 3 },
+    "Torre Infernale": { qty: 2, lvl: 3 },
+    "Artiglieria Aquila": { qty: 0, lvl: 0 },
+    "Scagliapietre (Scattershot)": { qty: 0, lvl: 0 },
+    "Capanna del Costruttore": { qty: 0, lvl: 0 },
+    "Torre degli Incantesimi": { qty: 0, lvl: 0 },
+    "Monolite": { qty: 0, lvl: 0 },
+    "Torre Multi-Arciere": { qty: 0, lvl: 0 },
+    "Cannone a palle rimbalzanti": { qty: 0, lvl: 0 },
+    "Torre Multi-Ingranaggio (Long Range)": { qty: 0, lvl: 0 },
+    "Sputafuoco": { qty: 0, lvl: 0 },
+    "Mura (sezioni)": { qty: 300, lvl: 11 },
+    "Bomba": { qty: 6, lvl: 6 },
+    "Trappola a Molla": { qty: 5, lvl: 5 },
+    "Bomba Gigante": { qty: 6, lvl: 6 },
+    "Bomba Aerea": { qty: 4, lvl: 4 },
+    "Mina Aerea a Ricerca": { qty: 3, lvl: 3 },
+    "Trappola Scheletrica": { qty: 4, lvl: 4 },
+    "Trappola Tornado": { qty: 0, lvl: 0 },
+    "Giga Bomba (solo TH17)": { qty: 0, lvl: 0 }
+  },
+  11: {
+    "Accampamento": { qty: 4, lvl: 9 },
+    "Caserma": { qty: 1, lvl: 13 },
+    "Caserma nera": { qty: 1, lvl: 8 },
+    "Laboratorio": { qty: 1, lvl: 9 },
+    "Fabbrica incantesimi": { qty: 1, lvl: 6 },
+    "Fabbrica incantesimi neri": { qty: 1, lvl: 5 },
+    "Officina d’assedio (Workshop)": { qty: 0, lvl: 0 },
+    "Fabbro (Blacksmith)": { qty: 1, lvl: 4 },
+    "Sala degli Eroi (Hero Hall)": { qty: 1, lvl: 5 },
+    "Casa degli Animali (Pet House)": { qty: 0, lvl: 0 },
+    "Castello del Clan": { qty: 1, lvl: 7 },
+    "Miniera d’Oro": { qty: 7, lvl: 14 },
+    "Collettore d’Elisir": { qty: 7, lvl: 14 },
+    "Deposito d’Oro": { qty: 4, lvl: 12 },
+    "Deposito d’Elisir": { qty: 4, lvl: 12 },
+    "Trivella d’Elisir Nero": { qty: 3, lvl: 8 },
+    "Deposito d’Elisir Nero": { qty: 1, lvl: 7 },
+    "Cannone": { qty: 7, lvl: 15 },
+    "Torre degli Arcieri": { qty: 8, lvl: 15 },
+    "Mortaio": { qty: 4, lvl: 10 },
+    "Torre dello Stregone": { qty: 5, lvl: 10 },
+    "Difesa Aerea": { qty: 4, lvl: 9 },
+    "Volano (Air Sweeper)": { qty: 2, lvl: 6 },
+    "Tesla Nascosta": { qty: 5, lvl: 9 },
+    "Torre delle Bombe": { qty: 2, lvl: 6 },
+    "Arco X (X-Bow)": { qty: 3, lvl: 4 },
+    "Torre Infernale": { qty: 2, lvl: 5 },
+    "Artiglieria Aquila": { qty: 1, lvl: 1 },
+    "Scagliapietre (Scattershot)": { qty: 0, lvl: 0 },
+    "Capanna del Costruttore": { qty: 0, lvl: 0 },
+    "Torre degli Incantesimi": { qty: 0, lvl: 0 },
+    "Monolite": { qty: 0, lvl: 0 },
+    "Torre Multi-Arciere": { qty: 0, lvl: 0 },
+    "Cannone a palle rimbalzanti": { qty: 0, lvl: 0 },
+    "Torre Multi-Ingranaggio (Long Range)": { qty: 0, lvl: 0 },
+    "Sputafuoco": { qty: 0, lvl: 0 },
+    "Mura (sezioni)": { qty: 300, lvl: 12 },
+    "Bomba": { qty: 7, lvl: 7 },
+    "Trappola a Molla": { qty: 6, lvl: 6 },
+    "Bomba Gigante": { qty: 6, lvl: 6 },
+    "Bomba Aerea": { qty: 5, lvl: 5 },
+    "Mina Aerea a Ricerca": { qty: 3, lvl: 3 },
+    "Trappola Scheletrica": { qty: 4, lvl: 4 },
+    "Trappola Tornado": { qty: 2, lvl: 2 },
+    "Giga Bomba (solo TH17)": { qty: 0, lvl: 0 }
+  },
+  12: {
+    "Accampamento": { qty: 4, lvl: 10 },
+    "Caserma": { qty: 1, lvl: 14 },
+    "Caserma nera": { qty: 1, lvl: 9 },
+    "Laboratorio": { qty: 1, lvl: 10 },
+    "Fabbrica incantesimi": { qty: 1, lvl: 6 },
+    "Fabbrica incantesimi neri": { qty: 1, lvl: 6 },
+    "Officina d’assedio (Workshop)": { qty: 1, lvl: 3 },
+    "Fabbro (Blacksmith)": { qty: 1, lvl: 5 },
+    "Sala degli Eroi (Hero Hall)": { qty: 1, lvl: 6 },
+    "Casa degli Animali (Pet House)": { qty: 0, lvl: 0 },
+    "Castello del Clan": { qty: 1, lvl: 8 },
+    "Miniera d’Oro": { qty: 7, lvl: 15 },
+    "Collettore d’Elisir": { qty: 7, lvl: 15 },
+    "Deposito d’Oro": { qty: 4, lvl: 13 },
+    "Deposito d’Elisir": { qty: 4, lvl: 13 },
+    "Trivella d’Elisir Nero": { qty: 3, lvl: 9 },
+    "Deposito d’Elisir Nero": { qty: 1, lvl: 8 },
+    "Cannone": { qty: 7, lvl: 17 },
+    "Torre degli Arcieri": { qty: 8, lvl: 17 },
+    "Mortaio": { qty: 4, lvl: 12 },
+    "Torre dello Stregone": { qty: 5, lvl: 11 },
+    "Difesa Aerea": { qty: 4, lvl: 10 },
+    "Volano (Air Sweeper)": { qty: 2, lvl: 7 },
+    "Tesla Nascosta": { qty: 5, lvl: 10 },
+    "Torre delle Bombe": { qty: 2, lvl: 7 },
+    "Arco X (X-Bow)": { qty: 4, lvl: 5 },
+    "Torre Infernale": { qty: 2, lvl: 6 },
+    "Artiglieria Aquila": { qty: 1, lvl: 3 },
+    "Scagliapietre (Scattershot)": { qty: 0, lvl: 0 },
+    "Capanna del Costruttore": { qty: 0, lvl: 0 },
+    "Torre degli Incantesimi": { qty: 0, lvl: 0 },
+    "Monolite": { qty: 0, lvl: 0 },
+    "Torre Multi-Arciere": { qty: 0, lvl: 0 },
+    "Cannone a palle rimbalzanti": { qty: 0, lvl: 0 },
+    "Torre Multi-Ingranaggio (Long Range)": { qty: 0, lvl: 0 },
+    "Sputafuoco": { qty: 0, lvl: 0 },
+    "Mura (sezioni)": { qty: 300, lvl: 13 },
+    "Bomba": { qty: 8, lvl: 8 },
+    "Trappola a Molla": { qty: 7, lvl: 7 },
+    "Bomba Gigante": { qty: 7, lvl: 7 },
+    "Bomba Aerea": { qty: 6, lvl: 6 },
+    "Mina Aerea a Ricerca": { qty: 3, lvl: 3 },
+    "Trappola Scheletrica": { qty: 4, lvl: 4 },
+    "Trappola Tornado": { qty: 3, lvl: 3 },
+    "Giga Bomba (solo TH17)": { qty: 0, lvl: 0 }
+  },
+  13: {
+    "Accampamento": { qty: 4, lvl: 11 },
+    "Caserma": { qty: 1, lvl: 14 },
+    "Caserma nera": { qty: 1, lvl: 11 },
+    "Laboratorio": { qty: 1, lvl: 11 },
+    "Fabbrica incantesimi": { qty: 1, lvl: 7 },
+    "Fabbrica incantesimi neri": { qty: 1, lvl: 6 },
+    "Officina d’assedio (Workshop)": { qty: 1, lvl: 5 },
+    "Fabbro (Blacksmith)": { qty: 1, lvl: 6 },
+    "Sala degli Eroi (Hero Hall)": { qty: 1, lvl: 7 },
+    "Casa degli Animali (Pet House)": { qty: 0, lvl: 0 },
+    "Castello del Clan": { qty: 1, lvl: 9 },
+    "Miniera d’Oro": { qty: 7, lvl: 15 },
+    "Collettore d’Elisir": { qty: 7, lvl: 15 },
+    "Deposito d’Oro": { qty: 4, lvl: 14 },
+    "Deposito d’Elisir": { qty: 4, lvl: 14 },
+    "Trivella d’Elisir Nero": { qty: 3, lvl: 9 },
+    "Deposito d’Elisir Nero": { qty: 1, lvl: 8 },
+    "Cannone": { qty: 7, lvl: 19 },
+    "Torre degli Arcieri": { qty: 8, lvl: 19 },
+    "Mortaio": { qty: 4, lvl: 13 },
+    "Torre dello Stregone": { qty: 5, lvl: 13 },
+    "Difesa Aerea": { qty: 4, lvl: 11 },
+    "Volano (Air Sweeper)": { qty: 2, lvl: 7 },
+    "Tesla Nascosta": { qty: 5, lvl: 12 },
+    "Torre delle Bombe": { qty: 2, lvl: 8 },
+    "Arco X (X-Bow)": { qty: 4, lvl: 5 },
+    "Torre Infernale": { qty: 2, lvl: 7 },
+    "Artiglieria Aquila": { qty: 1, lvl: 4 },
+    "Scagliapietre (Scattershot)": { qty: 2, lvl: 2 },
+    "Capanna del Costruttore": { qty: 0, lvl: 0 },
+    "Torre degli Incantesimi": { qty: 0, lvl: 0 },
+    "Monolite": { qty: 0, lvl: 0 },
+    "Torre Multi-Arciere": { qty: 0, lvl: 0 },
+    "Cannone a palle rimbalzanti": { qty: 0, lvl: 0 },
+    "Torre Multi-Ingranaggio (Long Range)": { qty: 0, lvl: 0 },
+    "Sputafuoco": { qty: 0, lvl: 0 },
+    "Mura (sezioni)": { qty: 325, lvl: 14 },
+    "Bomba": { qty: 9, lvl: 9 },
+    "Trappola a Molla": { qty: 8, lvl: 8 },
+    "Bomba Gigante": { qty: 7, lvl: 7 },
+    "Bomba Aerea": { qty: 8, lvl: 8 },
+    "Mina Aerea a Ricerca": { qty: 4, lvl: 4 },
+    "Trappola Scheletrica": { qty: 4, lvl: 4 },
+    "Trappola Tornado": { qty: 3, lvl: 3 },
+    "Giga Bomba (solo TH17)": { qty: 0, lvl: 0 }
+  },
+  14: {
+    "Accampamento": { qty: 4, lvl: 11 },
+    "Caserma": { qty: 1, lvl: 15 },
+    "Caserma nera": { qty: 1, lvl: 10 },
+    "Laboratorio": { qty: 1, lvl: 12 },
+    "Fabbrica incantesimi": { qty: 1, lvl: 7 },
+    "Fabbrica incantesimi neri": { qty: 1, lvl: 6 },
+    "Officina d’assedio (Workshop)": { qty: 1, lvl: 6 },
+    "Fabbro (Blacksmith)": { qty: 1, lvl: 7 },
+    "Sala degli Eroi (Hero Hall)": { qty: 1, lvl: 8 },
+    "Casa degli Animali (Pet House)": { qty: 1, lvl: 4 },
+    "Castello del Clan": { qty: 1, lvl: 10 },
+    "Miniera d’Oro": { qty: 7, lvl: 16 },
+    "Collettore d’Elisir": { qty: 7, lvl: 16 },
+    "Deposito d’Oro": { qty: 4, lvl: 15 },
+    "Deposito d’Elisir": { qty: 4, lvl: 15 },
+    "Trivella d’Elisir Nero": { qty: 3, lvl: 10 },
+    "Deposito d’Elisir Nero": { qty: 1, lvl: 9 },
+    "Cannone": { qty: 8, lvl: 20 },
+    "Torre degli Arcieri": { qty: 8, lvl: 20 },
+    "Mortaio": { qty: 4, lvl: 14 },
+    "Torre dello Stregone": { qty: 5, lvl: 14 },
+    "Difesa Aerea": { qty: 4, lvl: 12 },
+    "Volano (Air Sweeper)": { qty: 2, lvl: 7 },
+    "Tesla Nascosta": { qty: 5, lvl: 13 },
+    "Torre delle Bombe": { qty: 2, lvl: 9 },
+    "Arco X (X-Bow)": { qty: 4, lvl: 6 },
+    "Torre Infernale": { qty: 2, lvl: 8 },
+    "Artiglieria Aquila": { qty: 1, lvl: 5 },
+    "Scagliapietre (Scattershot)": { qty: 2, lvl: 3 },
+    "Capanna del Costruttore": { qty: 4, lvl: 4 },
+    "Torre degli Incantesimi": { qty: 0, lvl: 0 },
+    "Monolite": { qty: 0, lvl: 0 },
+    "Torre Multi-Arciere": { qty: 0, lvl: 0 },
+    "Cannone a palle rimbalzanti": { qty: 0, lvl: 0 },
+    "Torre Multi-Ingranaggio (Long Range)": { qty: 0, lvl: 0 },
+    "Sputafuoco": { qty: 0, lvl: 0 },
+    "Mura (sezioni)": { qty: 325, lvl: 15 },
+    "Bomba": { qty: 10, lvl: 10 },
+    "Trappola a Molla": { qty: 9, lvl: 9 },
+    "Bomba Gigante": { qty: 8, lvl: 8 },
+    "Bomba Aerea": { qty: 9, lvl: 9 },
+    "Mina Aerea a Ricerca": { qty: 4, lvl: 4 },
+    "Trappola Scheletrica": { qty: 4, lvl: 4 },
+    "Trappola Tornado": { qty: 3, lvl: 3 },
+    "Giga Bomba (solo TH17)": { qty: 0, lvl: 0 }
+  },
+  15: {
+    "Accampamento": { qty: 4, lvl: 12 },
+    "Caserma": { qty: 1, lvl: 16 },
+    "Caserma nera": { qty: 1, lvl: 11 },
+    "Laboratorio": { qty: 1, lvl: 13 },
+    "Fabbrica incantesimi": { qty: 1, lvl: 8 },
+    "Fabbrica incantesimi neri": { qty: 1, lvl: 6 },
+    "Officina d’assedio (Workshop)": { qty: 1, lvl: 7 },
+    "Fabbro (Blacksmith)": { qty: 1, lvl: 8 },
+    "Sala degli Eroi (Hero Hall)": { qty: 1, lvl: 9 },
+    "Casa degli Animali (Pet House)": { qty: 1, lvl: 8 },
+    "Castello del Clan": { qty: 1, lvl: 11 },
+    "Miniera d’Oro": { qty: 7, lvl: 16 },
+    "Collettore d’Elisir": { qty: 7, lvl: 16 },
+    "Deposito d’Oro": { qty: 4, lvl: 16 },
+    "Deposito d’Elisir": { qty: 4, lvl: 16 },
+    "Trivella d’Elisir Nero": { qty: 3, lvl: 11 },
+    "Deposito d’Elisir Nero": { qty: 1, lvl: 10 },
+    "Cannone": { qty: 8, lvl: 21 },
+    "Torre degli Arcieri": { qty: 8, lvl: 21 },
+    "Mortaio": { qty: 4, lvl: 15 },
+    "Torre dello Stregone": { qty: 5, lvl: 15 },
+    "Difesa Aerea": { qty: 4, lvl: 13 },
+    "Volano (Air Sweeper)": { qty: 2, lvl: 7 },
+    "Tesla Nascosta": { qty: 5, lvl: 14 },
+    "Torre delle Bombe": { qty: 2, lvl: 10 },
+    "Arco X (X-Bow)": { qty: 4, lvl: 7 },
+    "Torre Infernale": { qty: 2, lvl: 9 },
+    "Artiglieria Aquila": { qty: 1, lvl: 6 },
+    "Scagliapietre (Scattershot)": { qty: 2, lvl: 4 },
+    "Capanna del Costruttore": { qty: 5, lvl: 5 },
+    "Torre degli Incantesimi": { qty: 3, lvl: 3 },
+    "Monolite": { qty: 2, lvl: 2 },
+    "Torre Multi-Arciere": { qty: 1, lvl: 1 },
+    "Cannone a palle rimbalzanti": { qty: 1, lvl: 1 },
+    "Torre Multi-Ingranaggio (Long Range)": { qty: 1, lvl: 1 },
+    "Sputafuoco": { qty: 1, lvl: 1 },
+    "Mura (sezioni)": { qty: 325, lvl: 16 },
+    "Bomba": { qty: 11, lvl: 11 },
+    "Trappola a Molla": { qty: 10, lvl: 10 },
+    "Bomba Gigante": { qty: 9, lvl: 9 },
+    "Bomba Aerea": { qty: 10, lvl: 10 },
+    "Mina Aerea a Ricerca": { qty: 5, lvl: 5 },
+    "Trappola Scheletrica": { qty: 4, lvl: 4 },
+    "Trappola Tornado": { qty: 3, lvl: 3 },
+    "Giga Bomba (solo TH17)": { qty: 0, lvl: 0 }
+  },
+  16: {
+    "Accampamento": { qty: 4, lvl: 12 },
+    "Caserma": { qty: 1, lvl: 17 },
+    "Caserma nera": { qty: 1, lvl: 11 },
+    "Laboratorio": { qty: 1, lvl: 14 },
+    "Fabbrica incantesimi": { qty: 1, lvl: 8 },
+    "Fabbrica incantesimi neri": { qty: 1, lvl: 6 },
+    "Officina d’assedio (Workshop)": { qty: 1, lvl: 7 },
+    "Fabbro (Blacksmith)": { qty: 1, lvl: 9 },
+    "Sala degli Eroi (Hero Hall)": { qty: 1, lvl: 10 },
+    "Casa degli Animali (Pet House)": { qty: 1, lvl: 10 },
+    "Castello del Clan": { qty: 1, lvl: 12 },
+    "Miniera d’Oro": { qty: 7, lvl: 16 },
+    "Collettore d’Elisir": { qty: 7, lvl: 16 },
+    "Deposito d’Oro": { qty: 4, lvl: 17 },
+    "Deposito d’Elisir": { qty: 4, lvl: 17 },
+    "Trivella d’Elisir Nero": { qty: 3, lvl: 11 },
+    "Deposito d’Elisir Nero": { qty: 1, lvl: 11 },
+    "Cannone": { qty: 8, lvl: 22 },
+    "Torre degli Arcieri": { qty: 8, lvl: 22 },
+    "Mortaio": { qty: 4, lvl: 16 },
+    "Torre dello Stregone": { qty: 5, lvl: 16 },
+    "Difesa Aerea": { qty: 4, lvl: 14 },
+    "Volano (Air Sweeper)": { qty: 2, lvl: 8 },
+    "Tesla Nascosta": { qty: 5, lvl: 15 },
+    "Torre delle Bombe": { qty: 2, lvl: 11 },
+    "Arco X (X-Bow)": { qty: 4, lvl: 11 },
+    "Torre Infernale": { qty: 2, lvl: 10 },
+    "Artiglieria Aquila": { qty: 1, lvl: 6 },
+    "Scagliapietre (Scattershot)": { qty: 2, lvl: 4 },
+    "Capanna del Costruttore": { qty: 5, lvl: 5 },
+    "Torre degli Incantesimi": { qty: 4, lvl: 4 },
+    "Monolite": { qty: 3, lvl: 3 },
+    "Torre Multi-Arciere": { qty: 2, lvl: 2 },
+    "Cannone a palle rimbalzanti": { qty: 2, lvl: 2 },
+    "Torre Multi-Ingranaggio (Long Range)": { qty: 2, lvl: 2 },
+    "Sputafuoco": { qty: 2, lvl: 2 },
+    "Mura (sezioni)": { qty: 325, lvl: 17 },
+    "Bomba": { qty: 12, lvl: 12 },
+    "Trappola a Molla": { qty: 10, lvl: 10 },
+    "Bomba Gigante": { qty: 10, lvl: 10 },
+    "Bomba Aerea": { qty: 11, lvl: 11 },
+    "Mina Aerea a Ricerca": { qty: 6, lvl: 6 },
+    "Trappola Scheletrica": { qty: 4, lvl: 4 },
+    "Trappola Tornado": { qty: 3, lvl: 3 },
+    "Giga Bomba (solo TH17)": { qty: 0, lvl: 0 }
+  },
+  17: {
+    "Accampamento": { qty: 4, lvl: 12 },
+    "Caserma": { qty: 1, lvl: 18 },
+    "Caserma nera": { qty: 1, lvl: 11 },
+    "Laboratorio": { qty: 1, lvl: 15 },
+    "Fabbrica incantesimi": { qty: 1, lvl: 8 },
+    "Fabbrica incantesimi neri": { qty: 1, lvl: 6 },
+    "Officina d’assedio (Workshop)": { qty: 1, lvl: 7 },
+    "Fabbro (Blacksmith)": { qty: 1, lvl: 9 },
+    "Sala degli Eroi (Hero Hall)": { qty: 1, lvl: 11 },
+    "Casa degli Animali (Pet House)": { qty: 1, lvl: 11 },
+    "Castello del Clan": { qty: 1, lvl: 12 },
+    "Miniera d’Oro": { qty: 7, lvl: 18 },
+    "Collettore d’Elisir": { qty: 7, lvl: 17 },
+    "Deposito d’Oro": { qty: 4, lvl: 18 },
+    "Deposito d’Elisir": { qty: 4, lvl: 18 },
+    "Trivella d’Elisir Nero": { qty: 3, lvl: 12 },
+    "Deposito d’Elisir Nero": { qty: 1, lvl: 12 },
+    "Cannone": { qty: 8, lvl: 23 },
+    "Torre degli Arcieri": { qty: 8, lvl: 23 },
+    "Mortaio": { qty: 4, lvl: 17 },
+    "Torre dello Stregone": { qty: 5, lvl: 17 },
+    "Difesa Aerea": { qty: 4, lvl: 15 },
+    "Volano (Air Sweeper)": { qty: 2, lvl: 8 },
+    "Tesla Nascosta": { qty: 5, lvl: 16 },
+    "Torre delle Bombe": { qty: 2, lvl: 12 },
+    "Arco X (X-Bow)": { qty: 4, lvl: 12 },
+    "Torre Infernale": { qty: 2, lvl: 11 },
+    "Artiglieria Aquila": { qty: 1, lvl: 7 },
+    "Scagliapietre (Scattershot)": { qty: 2, lvl: 5 },
+    "Capanna del Costruttore": { qty: 5, lvl: 5 },
+    "Torre degli Incantesimi": { qty: 5, lvl: 5 },
+    "Monolite": { qty: 4, lvl: 4 },
+    "Torre Multi-Arciere": { qty: 3, lvl: 3 },
+    "Cannone a palle rimbalzanti": { qty: 3, lvl: 3 },
+    "Torre Multi-Ingranaggio (Long Range)": { qty: 3, lvl: 3 },
+    "Sputafuoco": { qty: 3, lvl: 3 },
+    "Mura (sezioni)": { qty: 325, lvl: 18 },
+    "Bomba": { qty: 13, lvl: 13 },
+    "Trappola a Molla": { qty: 11, lvl: 11 },
+    "Bomba Gigante": { qty: 11, lvl: 11 },
+    "Bomba Aerea": { qty: 12, lvl: 12 },
+    "Mina Aerea a Ricerca": { qty: 7, lvl: 7 },
+    "Trappola Scheletrica": { qty: 4, lvl: 4 },
+    "Trappola Tornado": { qty: 3, lvl: 3 },
+    "Giga Bomba (solo TH17)": { qty: 3, lvl: 3 }
   }
-  return out;
-}
-
-/* CAPS2 derivati dalla tabella (qty + lvl per struttura/trappola/risorsa/army) */
-const CAPS2: Record<TH, CapsByName> = buildCaps2FromRaw(RAW_TABLE);
+};
 
 /* =============== Ordini priorità =============== */
 const FARM_ORDER = [
@@ -428,7 +712,7 @@ export default function Page(){
       return false;
     };
     for(const k of order) if(push(k)) break;
-    if(!tipsOut.length){ for(const r of out){ const qt = typeof r.targetQty==='number'?` ×${r.foundCount ?? 0}/${r.targetQty}`:''; const line=`${r.name}${qt}: ${r.have} → ${r.max}`; if(!tipsOut.includes(line)) tipsOut.push(line); if(tipsOut.length>=10) break; } }
+    if(!tipsOut.length){ for(const r of out){ const qt = typeof r.targetQty==='number'?` ×${r.foundCount ?? 0}/${r.targetQty}`:''; const line=`${r.name}{qt}: ${r.have} → ${r.max}`.replace('{qt}', qt); if(!tipsOut.includes(line)) tipsOut.push(line); if(tipsOut.length>=10) break; } }
     setTips(tipsOut);
 
     // 7) summary
