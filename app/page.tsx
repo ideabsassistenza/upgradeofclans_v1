@@ -362,7 +362,7 @@ const CAPS2: Record<TH, CapsByName> = {
     "Fabbro (Blacksmith)": { qty: 1, lvl: 7 },
     "Sala degli Eroi (Hero Hall)": { qty: 1, lvl: 8 },
     "Casa degli Animali (Pet House)": { qty: 1, lvl: 4 },
-    "Castello del Clan": { qty: 1, lvl: 11 },
+    "Castello del Clan": { qty: 1, lvl: 10 },
     "Miniera d’Oro": { qty: 7, lvl: 16 },
     "Collettore d’Elisir": { qty: 7, lvl: 16 },
     "Deposito d’Oro": { qty: 4, lvl: 15 },
