@@ -6,16 +6,22 @@ import React, { useEffect, useRef, useState } from 'react';
    - Parser tollerante input JSON (frammenti o oggetti completi)
    - Rilevamento TH
    - ID→Nome in italiano (incluso Principe Minion ID 28000006)
-   - CAPS Strutture TH10–TH17 (estesi) + CAPS Eroi
+   - **CAPS Strutture con quantità + livello max (qty + lvl) per TH10–TH17**
+   - Eroi: invariati (usiamo i cap livello già presenti)
    - Modalità FARM / WAR con ordinamento consigli
-   - UI pulita senza ridondanze in header, con banner /public/banner.png
+   - UI pulita con banner /public/banner.png
    - Esclusi equipaggiamenti eroi e Base del Costruttore
    ========================================================= */
 
 /* =============== Tipi =============== */
 type Cat = 'hero'|'pet'|'defense'|'trap'|'resource'|'army'|'townhall'|'other'|'misc';
 type Meta = { name: string; cat: Cat };
-type Row = { name: string; have: number; max: number; foundCount?: number };
+type Row = { name: string; have: number; max: number; foundCount?: number; targetQty?: number };
+
+type Cap = { qty: number; lvl: number };
+type CapsByName = Record<string, Cap>;
+const THS = [10,11,12,13,14,15,16,17] as const;
+type TH = typeof THS[number];
 
 /* =============== Util =============== */
 function normalizeName(s: string): string {
@@ -34,9 +40,7 @@ function normalizeName(s: string): string {
 function tolerantParse(raw: string): any {
   let t = (raw || '').trim();
   if (!t) return {};
-  // Se non sembra JSON completo, impacchetta in {}
   if (!t.startsWith('{') && !t.startsWith('[')) t = '{' + t + '}';
-  // Rimuovi virgole finali
   t = t.replace(/,(\s*[}\]])/g, '$1');
   const bal = (s:string,o:string,c:string)=> (s.match(new RegExp('\\'+o,'g'))||[]).length - (s.match(new RegExp('\\'+c,'g'))||[]).length;
   let d = bal(t,'{','}'); if (d>0) t += '}'.repeat(d); else if (d<0) t = t.slice(0,d);
@@ -58,10 +62,8 @@ function deepFindNumber(obj:any, keys:string[]): number|undefined {
 }
 
 function detectTH(json:any): number|undefined {
-  // 1) campi espliciti
   const explicit = deepFindNumber(json, ['townHallLevel','th','thLevel','town_hall']);
   if (explicit && explicit>=1 && explicit<=20) return explicit;
-  // 2) cerca Municipio in buildings/buildings2
   const scan = (arr?:any[])=>{
     if(!Array.isArray(arr)) return;
     for(const it of arr){
@@ -80,7 +82,7 @@ const IDMAP: Record<number, Meta> = {
   28000004:{name:'Campionessa Reale',cat:'hero'},
   28000005:{name:'Principe Minion',cat:'hero'}, // compat legacy
   28000006:{name:'Principe Minion',cat:'hero'}, // ID confermato dal tuo JSON
-  // Pets (presenza sola; non usati nei caps)
+  // Pets (solo presenza)
   73000000:{name:'L.A.S.S.I',cat:'pet'},
   73000001:{name:'Gufo Elettrico',cat:'pet'},
   73000002:{name:'Yak Potente',cat:'pet'},
@@ -138,148 +140,118 @@ const IDMAP: Record<number, Meta> = {
   12000020:{name:'Giga Bomba (solo TH17)',cat:'trap'},
 };
 
-/* =============== CAPS (Strutture + Eroi) ===============
-   Nota:
-   - Valori estesi per TH10→TH17
-   - Eroi presi dall’ultima tabella che mi hai mostrato (TH10→TH17)
-   - Esclusi equipaggiamenti eroi e Builder Base
-   - Se un cap non esiste a quel TH, è 0
-*/
-const CAPS: Record<number, Record<string, number>> = {
-  10: {
-    // Army/tech
-    "Accampamento": 8, "Caserma": 12, "Caserma nera": 7, "Laboratorio": 8,
-    "Fabbrica incantesimi": 5, "Fabbrica incantesimi neri": 5, "Officina d’assedio (Workshop)": 0,
-    "Fabbro (Blacksmith)": 3, "Sala degli Eroi (Hero Hall)": 4, "Casa degli Animali (Pet House)": 0,
-    "Castello del Clan": 6,
-    // Risorse
-    "Miniera d’Oro": 13, "Collettore d’Elisir": 13, "Deposito d’Oro": 11, "Deposito d’Elisir": 12,
-    "Trivella d’Elisir Nero": 7, "Deposito d’Elisir Nero": 6,
-    // Difese
-    "Cannone": 13, "Torre degli Arcieri": 13, "Mortaio": 8, "Torre dello Stregone": 9, "Difesa Aerea": 8,
-    "Volano (Air Sweeper)": 4, "Tesla Nascosta": 8, "Torre delle Bombe": 5,
-    "Arco X (X-Bow)": 2, "Torre Infernale": 2, "Artiglieria Aquila": 0, "Scagliapietre (Scattershot)": 0,
-    "Capanna del Costruttore": 0, "Torre degli Incantesimi": 0, "Monolite": 0,
-    "Torre Multi-Arciere": 0, "Cannone a palle rimbalzanti": 0, "Torre Multi-Ingranaggio (Long Range)": 0, "Sputafuoco": 0,
-    // Trappole/Mura
-    "Mura (sezioni)": 300, "Bomba": 6, "Trappola a Molla": 5, "Bomba Gigante": 6, "Bomba Aerea": 4, "Mina Aerea a Ricerca": 3,
-    "Trappola Scheletrica": 4, "Trappola Tornado": 0, "Giga Bomba (solo TH17)": 0,
-    // Eroi
-    "Re Barbaro": 40, "Regina degli Arcieri": 40, "Principe Minion": 20, "Sorvegliante (Grand Warden)": 0, "Campionessa Reale": 0
-  },
-  11: {
-    "Accampamento": 9, "Caserma": 13, "Caserma nera": 8, "Laboratorio": 9,
-    "Fabbrica incantesimi": 6, "Fabbrica incantesimi neri": 5, "Officina d’assedio (Workshop)": 0,
-    "Fabbro (Blacksmith)": 4, "Sala degli Eroi (Hero Hall)": 5, "Casa degli Animali (Pet House)": 0,
-    "Castello del Clan": 7,
-    "Miniera d’Oro": 14, "Collettore d’Elisir": 14, "Deposito d’Oro": 12, "Deposito d’Elisir": 12,
-    "Trivella d’Elisir Nero": 8, "Deposito d’Elisir Nero": 7,
-    "Cannone": 15, "Torre degli Arcieri": 15, "Mortaio": 10, "Torre dello Stregone": 10, "Difesa Aerea": 9,
-    "Volano (Air Sweeper)": 6, "Tesla Nascosta": 9, "Torre delle Bombe": 6,
-    "Arco X (X-Bow)": 3, "Torre Infernale": 5, "Artiglieria Aquila": 1, "Scagliapietre (Scattershot)": 0,
-    "Capanna del Costruttore": 0, "Torre degli Incantesimi": 0, "Monolite": 0,
-    "Torre Multi-Arciere": 0, "Cannone a palle rimbalzanti": 0, "Torre Multi-Ingranaggio (Long Range)": 0, "Sputafuoco": 0,
-    "Mura (sezioni)": 300, "Bomba": 7, "Trappola a Molla": 6, "Bomba Gigante": 6, "Bomba Aerea": 5, "Mina Aerea a Ricerca": 3,
-    "Trappola Scheletrica": 4, "Trappola Tornado": 2, "Giga Bomba (solo TH17)": 0,
-    "Re Barbaro": 50, "Regina degli Arcieri": 50, "Principe Minion": 30, "Sorvegliante (Grand Warden)": 20, "Campionessa Reale": 0
-  },
-  12: {
-    "Accampamento": 10, "Caserma": 14, "Caserma nera": 9, "Laboratorio": 10,
-    "Fabbrica incantesimi": 6, "Fabbrica incantesimi neri": 6, "Officina d’assedio (Workshop)": 3,
-    "Fabbro (Blacksmith)": 5, "Sala degli Eroi (Hero Hall)": 6, "Casa degli Animali (Pet House)": 0,
-    "Castello del Clan": 8,
-    "Miniera d’Oro": 15, "Collettore d’Elisir": 15, "Deposito d’Oro": 13, "Deposito d’Elisir": 13,
-    "Trivella d’Elisir Nero": 9, "Deposito d’Elisir Nero": 8,
-    "Cannone": 17, "Torre degli Arcieri": 17, "Mortaio": 12, "Torre dello Stregone": 11, "Difesa Aerea": 10,
-    "Volano (Air Sweeper)": 7, "Tesla Nascosta": 10, "Torre delle Bombe": 7,
-    "Arco X (X-Bow)": 4, "Torre Infernale": 6, "Artiglieria Aquila": 3, "Scagliapietre (Scattershot)": 0,
-    "Capanna del Costruttore": 0, "Torre degli Incantesimi": 0, "Monolite": 0,
-    "Torre Multi-Arciere": 0, "Cannone a palle rimbalzanti": 0, "Torre Multi-Ingranaggio (Long Range)": 0, "Sputafuoco": 0,
-    "Mura (sezioni)": 300, "Bomba": 8, "Trappola a Molla": 7, "Bomba Gigante": 7, "Bomba Aerea": 6, "Mina Aerea a Ricerca": 3,
-    "Trappola Scheletrica": 4, "Trappola Tornado": 3, "Giga Bomba (solo TH17)": 0,
-    "Re Barbaro": 65, "Regina degli Arcieri": 65, "Principe Minion": 40, "Sorvegliante (Grand Warden)": 40, "Campionessa Reale": 25
-  },
-  13: {
-    "Accampamento": 11, "Caserma": 15, "Caserma nera": 10, "Laboratorio": 11,
-    "Fabbrica incantesimi": 7, "Fabbrica incantesimi neri": 6, "Officina d’assedio (Workshop)": 5,
-    "Fabbro (Blacksmith)": 6, "Sala degli Eroi (Hero Hall)": 7, "Casa degli Animali (Pet House)": 0,
-    "Castello del Clan": 9,
-    "Miniera d’Oro": 15, "Collettore d’Elisir": 15, "Deposito d’Oro": 14, "Deposito d’Elisir": 14,
-    "Trivella d’Elisir Nero": 9, "Deposito d’Elisir Nero": 8,
-    "Cannone": 19, "Torre degli Arcieri": 19, "Mortaio": 13, "Torre dello Stregone": 13, "Difesa Aerea": 11,
-    "Volano (Air Sweeper)": 7, "Tesla Nascosta": 12, "Torre delle Bombe": 8,
-    "Arco X (X-Bow)": 5, "Torre Infernale": 7, "Artiglieria Aquila": 4, "Scagliapietre (Scattershot)": 2,
-    "Capanna del Costruttore": 0, "Torre degli Incantesimi": 0, "Monolite": 0,
-    "Torre Multi-Arciere": 0, "Cannone a palle rimbalzanti": 0, "Torre Multi-Ingranaggio (Long Range)": 0, "Sputafuoco": 0,
-    "Mura (sezioni)": 325, "Bomba": 9, "Trappola a Molla": 8, "Bomba Gigante": 7, "Bomba Aerea": 8, "Mina Aerea a Ricerca": 4,
-    "Trappola Scheletrica": 4, "Trappola Tornado": 3, "Giga Bomba (solo TH17)": 0,
-    "Re Barbaro": 75, "Regina degli Arcieri": 75, "Principe Minion": 50, "Sorvegliante (Grand Warden)": 50, "Campionessa Reale": 30
-  },
-  14: {
-    "Accampamento": 11, "Caserma": 16, "Caserma nera": 11, "Laboratorio": 12,
-    "Fabbrica incantesimi": 7, "Fabbrica incantesimi neri": 6, "Officina d’assedio (Workshop)": 6,
-    "Fabbro (Blacksmith)": 7, "Sala degli Eroi (Hero Hall)": 8, "Casa degli Animali (Pet House)": 4,
-    "Castello del Clan": 10,
-    "Miniera d’Oro": 16, "Collettore d’Elisir": 16, "Deposito d’Oro": 15, "Deposito d’Elisir": 15,
-    "Trivella d’Elisir Nero": 10, "Deposito d’Elisir Nero": 9,
-    "Cannone": 20, "Torre degli Arcieri": 20, "Mortaio": 14, "Torre dello Stregone": 14, "Difesa Aerea": 12,
-    "Volano (Air Sweeper)": 7, "Tesla Nascosta": 13, "Torre delle Bombe": 9,
-    "Arco X (X-Bow)": 6, "Torre Infernale": 8, "Artiglieria Aquila": 5, "Scagliapietre (Scattershot)": 3,
-    "Capanna del Costruttore": 4, "Torre degli Incantesimi": 0, "Monolite": 0,
-    "Torre Multi-Arciere": 0, "Cannone a palle rimbalzanti": 0, "Torre Multi-Ingranaggio (Long Range)": 0, "Sputafuoco": 0,
-    "Mura (sezioni)": 15, "Bomba": 10, "Trappola a Molla": 9, "Bomba Gigante": 8, "Bomba Aerea": 9, "Mina Aerea a Ricerca": 4,
-    "Trappola Scheletrica": 4, "Trappola Tornado": 3, "Giga Bomba (solo TH17)": 0,
-    "Re Barbaro": 80, "Regina degli Arcieri": 80, "Principe Minion": 60, "Sorvegliante (Grand Warden)": 55, "Campionessa Reale": 35
-  },
-  15: {
-    "Accampamento": 12, "Caserma": 17, "Caserma nera": 11, "Laboratorio": 13,
-    "Fabbrica incantesimi": 8, "Fabbrica incantesimi neri": 6, "Officina d’assedio (Workshop)": 7,
-    "Fabbro (Blacksmith)": 8, "Sala degli Eroi (Hero Hall)": 9, "Casa degli Animali (Pet House)": 8,
-    "Castello del Clan": 11,
-    "Miniera d’Oro": 16, "Collettore d’Elisir": 16, "Deposito d’Oro": 16, "Deposito d’Elisir": 16,
-    "Trivella d’Elisir Nero": 11, "Deposito d’Elisir Nero": 10,
-    "Cannone": 21, "Torre degli Arcieri": 21, "Mortaio": 15, "Torre dello Stregone": 15, "Difesa Aerea": 13,
-    "Volano (Air Sweeper)": 7, "Tesla Nascosta": 14, "Torre delle Bombe": 10,
-    "Arco X (X-Bow)": 7, "Torre Infernale": 9, "Artiglieria Aquila": 6, "Scagliapietre (Scattershot)": 4,
-    "Capanna del Costruttore": 5, "Torre degli Incantesimi": 3, "Monolite": 2,
-    "Torre Multi-Arciere": 1, "Cannone a palle rimbalzanti": 1, "Torre Multi-Ingranaggio (Long Range)": 1, "Sputafuoco": 1,
-    "Mura (sezioni)": 16, "Bomba": 11, "Trappola a Molla": 10, "Bomba Gigante": 9, "Bomba Aerea": 10, "Mina Aerea a Ricerca": 5,
-    "Trappola Scheletrica": 4, "Trappola Tornado": 3, "Giga Bomba (solo TH17)": 0,
-    "Re Barbaro": 90, "Regina degli Arcieri": 90, "Principe Minion": 70, "Sorvegliante (Grand Warden)": 60, "Campionessa Reale": 40
-  },
-  16: {
-    "Accampamento": 12, "Caserma": 18, "Caserma nera": 11, "Laboratorio": 14,
-    "Fabbrica incantesimi": 8, "Fabbrica incantesimi neri": 6, "Officina d’assedio (Workshop)": 7,
-    "Fabbro (Blacksmith)": 9, "Sala degli Eroi (Hero Hall)": 10, "Casa degli Animali (Pet House)": 10,
-    "Castello del Clan": 12,
-    "Miniera d’Oro": 16, "Collettore d’Elisir": 16, "Deposito d’Oro": 17, "Deposito d’Elisir": 17,
-    "Trivella d’Elisir Nero": 11, "Deposito d’Elisir Nero": 11,
-    "Cannone": 22, "Torre degli Arcieri": 22, "Mortaio": 16, "Torre dello Stregone": 16, "Difesa Aerea": 14,
-    "Volano (Air Sweeper)": 8, "Tesla Nascosta": 15, "Torre delle Bombe": 11,
-    "Arco X (X-Bow)": 11, "Torre Infernale": 10, "Artiglieria Aquila": 6, "Scagliapietre (Scattershot)": 4,
-    "Capanna del Costruttore": 5, "Torre degli Incantesimi": 4, "Monolite": 3,
-    "Torre Multi-Arciere": 2, "Cannone a palle rimbalzanti": 2, "Torre Multi-Ingranaggio (Long Range)": 2, "Sputafuoco": 2,
-    "Mura (sezioni)": 17, "Bomba": 12, "Trappola a Molla": 10, "Bomba Gigante": 10, "Bomba Aerea": 11, "Mina Aerea a Ricerca": 6,
-    "Trappola Scheletrica": 4, "Trappola Tornado": 3, "Giga Bomba (solo TH17)": 0,
-    "Re Barbaro": 95, "Regina degli Arcieri": 95, "Principe Minion": 80, "Sorvegliante (Grand Warden)": 70, "Campionessa Reale": 45
-  },
-  17: {
-    "Accampamento": 12, "Caserma": 18, "Caserma nera": 11, "Laboratorio": 15,
-    "Fabbrica incantesimi": 8, "Fabbrica incantesimi neri": 6, "Officina d’assedio (Workshop)": 7,
-    "Fabbro (Blacksmith)": 9, "Sala degli Eroi (Hero Hall)": 11, "Casa degli Animali (Pet House)": 11,
-    "Castello del Clan": 12,
-    "Miniera d’Oro": 18, "Collettore d’Elisir": 17, "Deposito d’Oro": 18, "Deposito d’Elisir": 18,
-    "Trivella d’Elisir Nero": 12, "Deposito d’Elisir Nero": 12,
-    "Cannone": 23, "Torre degli Arcieri": 23, "Mortaio": 17, "Torre dello Stregone": 17, "Difesa Aerea": 15,
-    "Volano (Air Sweeper)": 8, "Tesla Nascosta": 16, "Torre delle Bombe": 12,
-    "Arco X (X-Bow)": 12, "Torre Infernale": 11, "Artiglieria Aquila": 7, "Scagliapietre (Scattershot)": 5,
-    "Capanna del Costruttore": 5, "Torre degli Incantesimi": 5, "Monolite": 4,
-    "Torre Multi-Arciere": 3, "Cannone a palle rimbalzanti": 3, "Torre Multi-Ingranaggio (Long Range)": 3, "Sputafuoco": 3,
-    "Mura (sezioni)": 18, "Bomba": 13, "Trappola a Molla": 11, "Bomba Gigante": 11, "Bomba Aerea": 12, "Mina Aerea a Ricerca": 7,
-    "Trappola Scheletrica": 4, "Trappola Tornado": 3, "Giga Bomba (solo TH17)": 3,
-    "Re Barbaro": 100, "Regina degli Arcieri": 100, "Principe Minion": 90, "Sorvegliante (Grand Warden)": 75, "Campionessa Reale": 50
-  }
+/* =========================================================
+   CAPS — Eroi: lasciamo i cap livello (già corretti nel tuo file)
+   ========================================================= */
+const CAPS_HERO: Record<number, Record<string, number>> = {
+  10: {"Re Barbaro":40,"Regina degli Arcieri":40,"Principe Minion":20,"Sorvegliante (Grand Warden)":0,"Campionessa Reale":0},
+  11: {"Re Barbaro":50,"Regina degli Arcieri":50,"Principe Minion":30,"Sorvegliante (Grand Warden)":20,"Campionessa Reale":0},
+  12: {"Re Barbaro":65,"Regina degli Arcieri":65,"Principe Minion":40,"Sorvegliante (Grand Warden)":40,"Campionessa Reale":25},
+  13: {"Re Barbaro":75,"Regina degli Arcieri":75,"Principe Minion":50,"Sorvegliante (Grand Warden)":50,"Campionessa Reale":30},
+  14: {"Re Barbaro":80,"Regina degli Arcieri":80,"Principe Minion":60,"Sorvegliante (Grand Warden)":55,"Campionessa Reale":35},
+  15: {"Re Barbaro":90,"Regina degli Arcieri":90,"Principe Minion":70,"Sorvegliante (Grand Warden)":60,"Campionessa Reale":40},
+  16: {"Re Barbaro":95,"Regina degli Arcieri":95,"Principe Minion":80,"Sorvegliante (Grand Warden)":70,"Campionessa Reale":45},
+  17: {"Re Barbaro":100,"Regina degli Arcieri":100,"Principe Minion":90,"Sorvegliante (Grand Warden)":75,"Campionessa Reale":50},
 };
+
+/* =========================================================
+   CAPS — Strutture: **qty + lvl** per ogni TH (TH10→TH17)
+   NOTA: i dati vengono caricati da una tabella testuale nel formato
+         "quantità – Liv. X". Questo ti permette di incollare 1:1
+         la tabella dell'immagine e avere i cap esatti.
+   ========================================================= */
+
+/* Incolla qui tutta la tabella (header + righe). Separatori accettati: TAB, ; o , */
+const RAW_TABLE = `
+Edificio/Eroe	TH10	TH11	TH12	TH13	TH14	TH15	TH16	TH17
+Accampamento	4 – Liv. 8	4 – Liv. 9	4 – Liv. 10	4 – Liv. 11	4 – Liv. 12	4 – Liv. 13	4 – Liv. 14	4 – Liv. 12
+Caserma	1 – Liv. 12	1 – Liv. 13	1 – Liv. 14	1 – Liv. 14	1 – Liv. 15	1 – Liv. 16	1 – Liv. 17	1 – Liv. 18
+Caserma nera	1 – Liv. 8	1 – Liv. 9	1 – Liv. 10	1 – Liv. 11	1 – Liv. 12	1 – Liv. 12	1 – Liv. 12	1 – Liv. 12
+Laboratorio	1 – Liv. 8	1 – Liv. 9	1 – Liv. 10	1 – Liv. 11	1 – Liv. 12	1 – Liv. 13	1 – Liv. 14	1 – Liv. 15
+Fabbrica incantesimi	1 – Liv. 5	1 – Liv. 6	1 – Liv. 6	1 – Liv. 7	1 – Liv. 7	1 – Liv. 8	1 – Liv. 8	1 – Liv. 8
+Fabbrica incantesimi neri	1 – Liv. 5	1 – Liv. 5	1 – Liv. 6	1 – Liv. 6	1 – Liv. 6	1 – Liv. 6	1 – Liv. 6	1 – Liv. 6
+Officina d’assedio (Workshop)	–	–	1 – Liv. 3	1 – Liv. 5	1 – Liv. 6	1 – Liv. 7	1 – Liv. 7	1 – Liv. 7
+Fabbro (Blacksmith)	1 – Liv. 3	1 – Liv. 4	1 – Liv. 5	1 – Liv. 6	1 – Liv. 7	1 – Liv. 8	1 – Liv. 9	1 – Liv. 9
+Sala degli Eroi (Hero Hall)	1 – Liv. 4	1 – Liv. 5	1 – Liv. 6	1 – Liv. 7	1 – Liv. 8	1 – Liv. 9	1 – Liv. 10	1 – Liv. 11
+Casa degli Animali (Pet House)	–	–	–	–	1 – Liv. 4	1 – Liv. 8	1 – Liv. 10	1 – Liv. 11
+Castello del Clan	1 – Liv. 6	1 – Liv. 7	1 – Liv. 8	1 – Liv. 9	1 – Liv. 10	1 – Liv. 11	1 – Liv. 12	1 – Liv. 12
+Miniera d’Oro	7 – Liv. 13	7 – Liv. 14	7 – Liv. 15	7 – Liv. 15	7 – Liv. 16	7 – Liv. 16	7 – Liv. 16	7 – Liv. 18
+Collettore d’Elisir	7 – Liv. 13	7 – Liv. 14	7 – Liv. 15	7 – Liv. 15	7 – Liv. 16	7 – Liv. 16	7 – Liv. 16	7 – Liv. 17
+Deposito d’Oro	4 – Liv. 11	4 – Liv. 12	4 – Liv. 13	4 – Liv. 14	4 – Liv. 15	4 – Liv. 16	4 – Liv. 17	4 – Liv. 18
+Deposito d’Elisir	4 – Liv. 12	4 – Liv. 12	4 – Liv. 13	4 – Liv. 14	4 – Liv. 15	4 – Liv. 16	4 – Liv. 17	4 – Liv. 18
+Trivella d’Elisir Nero	3 – Liv. 7	3 – Liv. 8	3 – Liv. 9	3 – Liv. 9	3 – Liv. 10	3 – Liv. 11	3 – Liv. 11	3 – Liv. 12
+Deposito d’Elisir Nero	1 – Liv. 6	1 – Liv. 7	1 – Liv. 8	1 – Liv. 8	1 – Liv. 9	1 – Liv. 10	1 – Liv. 11	1 – Liv. 12
+Cannone	6 – Liv. 13	7 – Liv. 15	7 – Liv. 17	7 – Liv. 19	8 – Liv. 20	8 – Liv. 21	8 – Liv. 22	8 – Liv. 23
+Torre degli Arcieri	7 – Liv. 13	8 – Liv. 15	8 – Liv. 17	8 – Liv. 19	8 – Liv. 20	8 – Liv. 21	8 – Liv. 22	8 – Liv. 23
+Mortaio	4 – Liv. 8	4 – Liv. 10	4 – Liv. 12	4 – Liv. 13	4 – Liv. 14	4 – Liv. 15	4 – Liv. 16	4 – Liv. 17
+Torre dello Stregone	4 – Liv. 9	5 – Liv. 10	5 – Liv. 11	5 – Liv. 13	5 – Liv. 14	5 – Liv. 15	5 – Liv. 16	5 – Liv. 17
+Difesa Aerea	4 – Liv. 8	4 – Liv. 9	4 – Liv. 10	4 – Liv. 11	4 – Liv. 12	4 – Liv. 13	4 – Liv. 14	4 – Liv. 15
+Volano (Air Sweeper)	2 – Liv. 4	2 – Liv. 6	2 – Liv. 7	2 – Liv. 7	2 – Liv. 7	2 – Liv. 7	2 – Liv. 8	2 – Liv. 8
+Tesla Nascosta	4 – Liv. 8	5 – Liv. 9	5 – Liv. 10	5 – Liv. 12	5 – Liv. 13	5 – Liv. 14	5 – Liv. 15	5 – Liv. 16
+Torre delle Bombe	2 – Liv. 4	2 – Liv. 6	2 – Liv. 7	2 – Liv. 8	2 – Liv. 9	2 – Liv. 10	2 – Liv. 11	2 – Liv. 12
+Arco X (X-Bow)	3 – Liv. 3	3 – Liv. 4	4 – Liv. 5	4 – Liv. 5	4 – Liv. 6	4 – Liv. 7	4 – Liv. 11	4 – Liv. 12
+Torre Infernale	2 – Liv. 3	2 – Liv. 5	2 – Liv. 6	2 – Liv. 7	2 – Liv. 8	2 – Liv. 9	2 – Liv. 10	2 – Liv. 11
+Artiglieria Aquila	–	1 – Liv. 1	1 – Liv. 3	1 – Liv. 4	1 – Liv. 5	1 – Liv. 6	1 – Liv. 6	1 – Liv. 7
+Scagliapietre (Scattershot)	–	–	–	2 – Liv. 2	2 – Liv. 3	2 – Liv. 4	2 – Liv. 4	2 – Liv. 5
+Capanna del Costruttore	–	–	–	–	4 – Liv. 4	5 – Liv. 5	5 – Liv. 5	5 – Liv. 5
+Torre degli Incantesimi	–	–	–	–	–	3 – Liv. 3	4 – Liv. 4	5 – Liv. 5
+Monolite	–	–	–	–	–	2 – Liv. 2	3 – Liv. 3	4 – Liv. 4
+Torre Multi-Arciere	–	–	–	–	–	1 – Liv. 1	2 – Liv. 2	3 – Liv. 3
+Cannone a palle rimbalzanti	–	–	–	–	–	1 – Liv. 1	2 – Liv. 2	3 – Liv. 3
+Torre Multi-Ingranaggio (Long Range)	–	–	–	–	–	1 – Liv. 1	2 – Liv. 2	3 – Liv. 3
+Sputafuoco	–	–	–	–	–	1 – Liv. 1	2 – Liv. 2	3 – Liv. 3
+Mura (sezioni)	300 – Liv. 11	300 – Liv. 12	300 – Liv. 13	325 – Liv. 14	325 – Liv. 15	325 – Liv. 16	325 – Liv. 17	325 – Liv. 18
+Bomba	6 – Liv. 6	7 – Liv. 7	8 – Liv. 8	9 – Liv. 9	10 – Liv. 10	11 – Liv. 11	12 – Liv. 12	13 – Liv. 13
+Trappola a Molla	5 – Liv. 5	6 – Liv. 6	7 – Liv. 7	8 – Liv. 8	9 – Liv. 9	10 – Liv. 10	10 – Liv. 10	11 – Liv. 11
+Bomba Gigante	6 – Liv. 6	6 – Liv. 6	7 – Liv. 7	7 – Liv. 7	8 – Liv. 8	9 – Liv. 9	10 – Liv. 10	11 – Liv. 11
+Bomba Aerea	4 – Liv. 4	5 – Liv. 5	6 – Liv. 6	8 – Liv. 8	9 – Liv. 9	10 – Liv. 10	11 – Liv. 11	12 – Liv. 12
+Mina Aerea a Ricerca	3 – Liv. 3	3 – Liv. 3	3 – Liv. 3	4 – Liv. 4	4 – Liv. 4	5 – Liv. 5	6 – Liv. 6	7 – Liv. 7
+Trappola Scheletrica	4 – Liv. 4	4 – Liv. 4	4 – Liv. 4	4 – Liv. 4	4 – Liv. 4	4 – Liv. 4	4 – Liv. 4	4 – Liv. 4
+Trappola Tornado	–	2 – Liv. 2	3 – Liv. 3	3 – Liv. 3	3 – Liv. 3	3 – Liv. 3	3 – Liv. 3	3 – Liv. 3
+Giga Bomba (solo TH17)	–	–	–	–	–	–	–	3 – Liv. 3
+`.trim();
+
+/* Helpers parsing celle tipo "2 – Liv. 4" o "–" */
+function parseCell(cell: string): Cap {
+  const s = (cell || '').trim().replace(/--/g,'–').replace(/-/g,'–');
+  if (!s || s === '–') return { qty: 0, lvl: 0 };
+  const qm = s.match(/^(\d+)\s*[\-–]\s*Liv\.\s*(\d+)/i);
+  if (qm) return { qty: Number(qm[1]), lvl: Number(qm[2]) };
+  const lm = s.match(/Liv\.\s*(\d+)/i);
+  if (lm) return { qty: 0, lvl: Number(lm[1]) };
+  return { qty: 0, lvl: 0 };
+}
+
+/* Converte RAW_TABLE → CAPS2 per ogni TH */
+function buildCaps2FromRaw(raw: string): Record<TH, CapsByName> {
+  const lines = raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const header = lines[0].split(/\t|;|,/).map(s=>s.trim());
+  const idxNome = 0;
+  const thIdx: Record<TH, number> = {} as any;
+  header.forEach((h,i)=>{
+    const k = h.replace(/\s+/g,'').toUpperCase();
+    THS.forEach(th=>{
+      if (k === `TH${th}`) thIdx[th] = i;
+    });
+  });
+
+  const out: Record<TH, CapsByName> = Object.fromEntries(THS.map(th=>[th,{}])) as any;
+
+  for (let i=1;i<lines.length;i++){
+    const cols = lines[i].split(/\t|;|,/).map(s=>s.trim());
+    const name = cols[idxNome];
+    if (!name) continue;
+    THS.forEach(th=>{
+      const idx = thIdx[th];
+      const cap = parseCell(cols[idx] ?? '–');
+      out[th][name] = cap;
+    });
+  }
+  return out;
+}
+
+/* CAPS2 derivati dalla tabella (qty + lvl per struttura/trappola/risorsa/army) */
+const CAPS2: Record<TH, CapsByName> = buildCaps2FromRaw(RAW_TABLE);
 
 /* =============== Ordini priorità =============== */
 const FARM_ORDER = [
@@ -322,7 +294,6 @@ export default function Page(){
   const [summary,setSummary]=useState('Incolla il JSON e premi “Analizza”');
 
   useEffect(()=>{
-    // analisi reattiva con debounce su input o cambio mode
     clearTimeout(tRef.current);
     tRef.current=setTimeout(()=>analyze(raw),180);
     return ()=>clearTimeout(tRef.current);
@@ -333,28 +304,26 @@ export default function Page(){
     const thv=detectTH(json);
     setTH(thv);
 
-  // Tipi base per record provenienti dal JSON
-type AnyRec = { data?: number; lvl?: number; cnt?: number };
+    // Tipi base per record provenienti dal JSON
+    type AnyRec = { data?: number; lvl?: number; cnt?: number };
 
-/* 1) EROI — prendi solo heroes/heroes2 (ID 280000xx) */
-const heroEntries: AnyRec[] = (
-  [
-    ...(Array.isArray(json.heroes2) ? (json.heroes2 as AnyRec[]) : []),
-    ...(Array.isArray(json.heroes)  ? (json.heroes  as AnyRec[]) : []),
-  ] as AnyRec[]
-).filter((it) => typeof it?.data === 'number' && String(it.data!).startsWith('280000'));
+    /* 1) EROI — prendi solo heroes/heroes2 (ID 280000xx) */
+    const heroEntries: AnyRec[] = (
+      [
+        ...(Array.isArray(json.heroes2) ? (json.heroes2 as AnyRec[]) : []),
+        ...(Array.isArray(json.heroes)  ? (json.heroes  as AnyRec[]) : []),
+      ] as AnyRec[]
+    ).filter((it) => typeof it?.data === 'number' && String(it.data!).startsWith('280000'));
 
-/* 2) ALTRI — buildings/buildings2/traps/traps2 (niente pets) */
-const otherEntries: AnyRec[] = (
-  [
-    ...(Array.isArray(json.buildings2) ? (json.buildings2 as AnyRec[]) : []),
-    ...(Array.isArray(json.buildings)  ? (json.buildings  as AnyRec[]) : []),
-    ...(Array.isArray(json.traps2)     ? (json.traps2     as AnyRec[]) : []),
-    ...(Array.isArray(json.traps)      ? (json.traps      as AnyRec[]) : []),
-  ] as AnyRec[]
-).filter((it) => typeof it?.data === 'number');
-
-
+    /* 2) ALTRI — buildings/buildings2/traps/traps2 (niente pets) */
+    const otherEntries: AnyRec[] = (
+      [
+        ...(Array.isArray(json.buildings2) ? (json.buildings2 as AnyRec[]) : []),
+        ...(Array.isArray(json.buildings)  ? (json.buildings  as AnyRec[]) : []),
+        ...(Array.isArray(json.traps2)     ? (json.traps2     as AnyRec[]) : []),
+        ...(Array.isArray(json.traps)      ? (json.traps      as AnyRec[]) : []),
+      ] as AnyRec[]
+    ).filter((it) => typeof it?.data === 'number');
 
     // 3) aggregazione
     const agg:Record<string,{lvl:number;cnt:number}> = {};
@@ -388,38 +357,81 @@ const otherEntries: AnyRec[] = (
       }
     }
 
-    // 4) confronto con CAPS del TH
-    const capmap = thv ? CAPS[thv] || {} : {};
-    const capIndex:Record<string,number> = Object.fromEntries(
-      Object.entries(capmap).map(([k,v])=>[normalizeName(k),v])
-    );
+    // 4) confronto con CAPS (Eroi) + CAPS2 (Strutture qty+lvl)
     const out:Row[]=[];
-    for(const [name,info] of Object.entries(agg)){
-      const cap = capIndex[normalizeName(name)];
-      if(typeof cap==='number' && cap>0 && info.lvl<cap) out.push({name,have:info.lvl,max:cap,foundCount:info.cnt});
+    if (typeof thv==='number') {
+      const heroCapMap = CAPS_HERO[thv] || {};
+      const capmap = CAPS2[thv as TH] || {};
+
+      const capIndex = new Map<string,{name:string; cap:Cap}>();
+      Object.entries(capmap).forEach(([name,cap])=> capIndex.set(normalizeName(name), {name,cap}));
+
+      for(const [name,info] of Object.entries(agg)){
+        const norm = normalizeName(name);
+
+        // 4a) ER0I: solo livello (qty non rilevante)
+        if (heroCapMap[name as keyof typeof heroCapMap] !== undefined) {
+          const capLvl = heroCapMap[name as keyof typeof heroCapMap]!;
+          if (capLvl>0 && info.lvl<capLvl) {
+            out.push({ name, have: info.lvl, max: capLvl, foundCount: info.cnt });
+          }
+          continue;
+        }
+
+        // 4b) STRUTTURE: qty + lvl
+        const hit = capIndex.get(norm);
+        if (!hit) continue;
+        const { cap } = hit;
+        if (cap.qty===0 && cap.lvl===0) continue; // non esiste a quel TH
+
+        const needLvl = cap.lvl > 0 && info.lvl < cap.lvl;
+        const needQty = cap.qty > 0 && info.cnt < cap.qty;
+
+        if (needLvl || needQty) {
+          out.push({
+            name,
+            have: info.lvl,
+            max: cap.lvl,
+            foundCount: info.cnt,
+            targetQty: cap.qty
+          });
+        }
+      }
     }
 
     // 5) ordinamento secondo modalità
     const order = mode==='WAR'?WAR_ORDER:FARM_ORDER;
     const rank=(n:string)=>{ const i=order.findIndex(x=>normalizeName(n).includes(normalizeName(x))); return i===-1?999:i; };
     out.sort((a,b)=>{
+      // prima chi ha gap di quantità
+      const qA = (a.targetQty ?? 0) - (a.foundCount ?? 0);
+      const qB = (b.targetQty ?? 0) - (b.foundCount ?? 0);
+      if (qA !== qB) return qB - qA;
+      // poi priorità lista
       const ra=rank(a.name), rb=rank(b.name); if(ra!==rb) return ra-rb;
+      // poi gap livello
       const da=a.max-a.have, db=b.max-b.have; if(db!==da) return db-da;
       return a.name.localeCompare(b.name,'it');
     });
     setRows(out);
 
-    // 6) consigli (prime 10 voci seguendo l’ordine)
+    // 6) consigli (prime 10 voci)
     const tipsOut:string[]=[];
     const push=(needle:string)=>{
-      for(const r of out){ if(normalizeName(r.name).includes(normalizeName(needle))){ const line=`${r.name}: ${r.have} → ${r.max}`; if(!tipsOut.includes(line)){ tipsOut.push(line); if(tipsOut.length>=10) return true; } } }
+      for(const r of out){
+        if(normalizeName(r.name).includes(normalizeName(needle))){
+          const qtyText = typeof r.targetQty==='number' ? ` ×${r.foundCount ?? 0}/${r.targetQty}` : '';
+          const line=`${r.name}${qtyText}: ${r.have} → ${r.max}`;
+          if(!tipsOut.includes(line)){ tipsOut.push(line); if(tipsOut.length>=10) return true; }
+        }
+      }
       return false;
     };
     for(const k of order) if(push(k)) break;
-    if(!tipsOut.length){ for(const r of out){ const line=`${r.name}: ${r.have} → ${r.max}`; if(!tipsOut.includes(line)) tipsOut.push(line); if(tipsOut.length>=10) break; } }
+    if(!tipsOut.length){ for(const r of out){ const qt = typeof r.targetQty==='number'?` ×${r.foundCount ?? 0}/${r.targetQty}`:''; const line=`${r.name}${qt}: ${r.have} → ${r.max}`; if(!tipsOut.includes(line)) tipsOut.push(line); if(tipsOut.length>=10) break; } }
     setTips(tipsOut);
 
-    // 7) summary (mostrato sotto l’editor, non in header)
+    // 7) summary
     setSummary(`${typeof thv==='number' ? `TH rilevato: ${thv}` : 'TH non rilevato'} · ${out.length} upgrade rilevati`);
   }
 
@@ -431,7 +443,7 @@ const otherEntries: AnyRec[] = (
         <img src="/banner.png" alt="Upgrade Planner banner" className="banner-img" />
       </div>
 
-      {/* Header pulito: solo brand + toggle (niente TH/upgrade qui) */}
+      {/* Header pulito */}
       <header className="topbar">
         <div className="brand">
           <span className="logo">⚔️</span>
@@ -443,7 +455,7 @@ const otherEntries: AnyRec[] = (
         </div>
       </header>
 
-      {/* Input JSON + summary (qui si mostra TH rilevato e #upgrade) */}
+      {/* Input JSON + summary */}
       <section className="card">
         <label className="label">Incolla qui il JSON del villaggio</label>
         <textarea className="textbox" value={raw} onChange={e=>setRaw(e.target.value)} placeholder='Accetta anche frammenti (es. "buildings2", "heroes2", "traps2")' />
@@ -482,6 +494,7 @@ const otherEntries: AnyRec[] = (
               const delta = Math.max(0, r.max - r.have);
               const pct = Math.max(0, Math.min(100, Math.round((r.have / r.max) * 100)));
               const isHero = /re barbaro|regina|sorvegliante|campionessa|minion/i.test(r.name);
+              const qtyText = typeof r.targetQty==='number' ? ` ×${r.foundCount ?? 0}/${r.targetQty}` : (typeof r.foundCount==='number' ? ` ×${r.foundCount}` : '');
               return (
                 <li key={i} className={`row ${isHero?'hero':''}`}>
                   <div className="row-main">
@@ -493,7 +506,7 @@ const otherEntries: AnyRec[] = (
                         /accampamento|caserma|castello|laboratorio|officina|fabbro|animali|eroi/i.test(r.name) ? '⚙️' : '📦'}
                       </span>
                       <b>{r.name}</b>
-                      {typeof r.foundCount==='number' && <span className="count">×{r.foundCount}</span>}
+                      {qtyText && <span className="count">{qtyText}</span>}
                     </div>
                     <div className="levels">
                       <span className="lvl current">liv. {r.have}</span>
@@ -502,7 +515,7 @@ const otherEntries: AnyRec[] = (
                       <span className={`delta ${delta===0?'done':''}`}>{delta===0?'MAX':`+${delta}`}</span>
                     </div>
                   </div>
-                  <button className="copy-btn" onClick={()=>{navigator.clipboard.writeText(`${r.name}: ${r.have} -> ${r.max}`);}} title="Copia riga">⧉</button>
+                  <button className="copy-btn" onClick={()=>{navigator.clipboard.writeText(`${r.name}${qtyText}: ${r.have} -> ${r.max}`);}} title="Copia riga">⧉</button>
                 </li>
               );
             })}
