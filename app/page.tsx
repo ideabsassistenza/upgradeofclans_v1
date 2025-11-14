@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from 'react';
    Upgrade Planner — Villaggio Principale (TH10→TH17)
    - Parser tollerante input JSON (frammenti o oggetti completi)
    - Rilevamento TH
-   - ID→Nome in italiano (incluso Principe Minion ID 28000006)
+   - ID→Nome in italiano (incluso Principe degli sgherri ID 28000006)
    - CAPS Strutture: **quantità + livello max** per TH10–TH17 (qty + lvl)
    - Eroi: invariati (solo livello)
    - Conta copie sotto-cap (muri & strutture duplicate): mostra quante sono da alzare
@@ -84,8 +84,8 @@ const IDMAP: Record<number, Meta> = {
   28000001:{name:'Regina degli Arcieri',cat:'hero'},
   28000002:{name:'Sorvegliante (Grand Warden)',cat:'hero'},
   28000004:{name:'Campionessa Reale',cat:'hero'},
-  28000005:{name:'Principe Minion',cat:'hero'}, // compat legacy
-  28000006:{name:'Principe Minion',cat:'hero'}, // confermato
+  28000005:{name:'Principe degli sgherri',cat:'hero'}, // compat legacy
+  28000006:{name:'Principe degli sgherri',cat:'hero'}, // confermato
   // Pets (solo presenza)
   73000000:{name:'L.A.S.S.I',cat:'pet'},
   73000001:{name:'Gufo Elettrico',cat:'pet'},
@@ -148,14 +148,14 @@ const IDMAP: Record<number, Meta> = {
    CAPS — Eroi (invariati)
    ========================================================= */
 const CAPS_HERO: Record<number, Record<string, number>> = {
-  10: {"Re Barbaro":40,"Regina degli Arcieri":40,"Principe Minion":20,"Sorvegliante (Grand Warden)":0,"Campionessa Reale":0},
-  11: {"Re Barbaro":50,"Regina degli Arcieri":50,"Principe Minion":30,"Sorvegliante (Grand Warden)":20,"Campionessa Reale":0},
-  12: {"Re Barbaro":65,"Regina degli Arcieri":65,"Principe Minion":40,"Sorvegliante (Grand Warden)":40,"Campionessa Reale":25},
-  13: {"Re Barbaro":75,"Regina degli Arcieri":75,"Principe Minion":50,"Sorvegliante (Grand Warden)":50,"Campionessa Reale":30},
-  14: {"Re Barbaro":80,"Regina degli Arcieri":80,"Principe Minion":60,"Sorvegliante (Grand Warden)":55,"Campionessa Reale":35},
-  15: {"Re Barbaro":90,"Regina degli Arcieri":90,"Principe Minion":70,"Sorvegliante (Grand Warden)":60,"Campionessa Reale":40},
-  16: {"Re Barbaro":95,"Regina degli Arcieri":95,"Principe Minion":80,"Sorvegliante (Grand Warden)":70,"Campionessa Reale":45},
-  17: {"Re Barbaro":100,"Regina degli Arcieri":100,"Principe Minion":90,"Sorvegliante (Grand Warden)":75,"Campionessa Reale":50},
+  10: {"Re Barbaro":40,"Regina degli Arcieri":40,"Principe degli sgherri":20,"Sorvegliante (Grand Warden)":0,"Campionessa Reale":0},
+  11: {"Re Barbaro":50,"Regina degli Arcieri":50,"Principe degli sgherri":30,"Sorvegliante (Grand Warden)":20,"Campionessa Reale":0},
+  12: {"Re Barbaro":65,"Regina degli Arcieri":65,"Principe degli sgherri":40,"Sorvegliante (Grand Warden)":40,"Campionessa Reale":25},
+  13: {"Re Barbaro":75,"Regina degli Arcieri":75,"Principe degli sgherri":50,"Sorvegliante (Grand Warden)":50,"Campionessa Reale":30},
+  14: {"Re Barbaro":80,"Regina degli Arcieri":80,"Principe degli sgherri":60,"Sorvegliante (Grand Warden)":55,"Campionessa Reale":35},
+  15: {"Re Barbaro":90,"Regina degli Arcieri":90,"Principe degli sgherri":70,"Sorvegliante (Grand Warden)":60,"Campionessa Reale":40},
+  16: {"Re Barbaro":95,"Regina degli Arcieri":95,"Principe degli sgherri":80,"Sorvegliante (Grand Warden)":70,"Campionessa Reale":45},
+  17: {"Re Barbaro":100,"Regina degli Arcieri":100,"Principe degli sgherri":90,"Sorvegliante (Grand Warden)":75,"Campionessa Reale":50},
 };
 
 /* =========================================================
@@ -357,11 +357,11 @@ const CAPS2: Record<TH, CapsByName> = {
     "Caserma nera": { qty: 1, lvl: 11 },
     "Laboratorio": { qty: 1, lvl: 12 },
     "Fabbrica incantesimi": { qty: 1, lvl: 7 },
-    "Fabbrica incantesimi neri": { qty: 1, lvl: 6 },
-    "Officina d’assedio (Workshop)": { qty: 1, lvl: 5 },
-    "Fabbro (Blacksmith)": { qty: 1, lvl: 7 },
-    "Sala degli Eroi (Hero Hall)": { qty: 1, lvl: 8 },
-    "Casa degli Animali (Pet House)": { qty: 1, lvl: 4 },
+    "Fabbrica incantesimi neri": { qty: 1, lvl: 7 },
+    "Officina d’assedio": { qty: 1, lvl: 6 },
+    "Fabbro": { qty: 1, lvl: 7 },
+    "Sala degli Eroi": { qty: 1, lvl: 8 },
+    "Casa degli Animali": { qty: 1, lvl: 4 },
     "Castello del Clan": { qty: 1, lvl: 10 },
     "Miniera d’Oro": { qty: 7, lvl: 16 },
     "Collettore d’Elisir": { qty: 7, lvl: 16 },
@@ -374,14 +374,14 @@ const CAPS2: Record<TH, CapsByName> = {
     "Mortaio": { qty: 4, lvl: 14 },
     "Torre dello Stregone": { qty: 5, lvl: 14 },
     "Difesa Aerea": { qty: 4, lvl: 12 },
-    "Volano (Air Sweeper)": { qty: 2, lvl: 7 },
+    "Volano": { qty: 2, lvl: 7 },
     "Tesla Nascosta": { qty: 5, lvl: 13 },
     "Torre Bombardiera": { qty: 2, lvl: 9 },
-    "Arco X (X-Bow)": { qty: 4, lvl: 9 },
+    "Arco X": { qty: 4, lvl: 9 },
     "Torre Infernale": { qty: 3, lvl: 8 },
     "Artiglieria Aquila": { qty: 1, lvl: 5 },
-    "Scagliapietre (Scattershot)": { qty: 2, lvl: 3 },
-    "Capanna del Costruttore": { qty: 4, lvl: 4 },
+    "Scagliapietre": { qty: 2, lvl: 3 },
+    "Capanna del Costruttore": { qty: 5, lvl: 4 },
     "Torre degli Incantesimi": { qty: 0, lvl: 0 },
     "Monolite": { qty: 0, lvl: 0 },
     "Torre Multi-Arciere": { qty: 0, lvl: 0 },
@@ -557,7 +557,7 @@ const FARM_ORDER = [
 const WAR_ORDER = [
   'Laboratorio','Fabbrica incantesimi','Fabbrica incantesimi neri',
   'Accampamento','Castello del Clan',
-  'Re Barbaro','Regina degli Arcieri','Principe Minion','Sorvegliante (Grand Warden)','Campionessa Reale','Casa degli Animali (Pet House)',
+  'Re Barbaro','Regina degli Arcieri','Principe degli sgherri','Sorvegliante (Grand Warden)','Campionessa Reale','Casa degli Animali (Pet House)',
   'Artiglieria Aquila','Scagliapietre (Scattershot)','Torre Infernale','Arco X (X-Bow)','Tesla Nascosta',
   'Torre degli Incantesimi','Monolite',
   'Difesa Aerea','Torre dello Stregone','Torre Bombardiera',
@@ -805,7 +805,7 @@ export default function Page(){
             <ul>
               <li><b>Attacco prima</b>: laboratorio + fabbriche (spell/dark spell).</li>
               <li><b>Esercito</b>: accampamenti e <i>Castello del Clan</i>.</li>
-              <li><b>Eroi</b>: King/Queen/Minion/Warden/RC ai cap chiave.</li>
+              <li><b>Eroi</b>: King/Queen/Sgherro/Warden/RC ai cap chiave.</li>
               <li><b>Difese WAR</b>: Aquila, Scatter, Infernali, X-Bow, Tesla, Spell Tower, Monolite.</li>
             </ul>
           )}
@@ -820,7 +820,7 @@ export default function Page(){
             {rows.map((r,i)=>{
               const delta = Math.max(0, r.max - r.have);
               const pct = Math.max(0, Math.min(100, Math.round((r.have / r.max) * 100)));
-              const isHero = /re barbaro|regina|sorvegliante|campionessa|minion/i.test(r.name);
+              const isHero = /re barbaro|regina|sorvegliante|campionessa|sgherro/i.test(r.name);
               const qtyText = formatQtyBadge(r.name, r.foundCount, r.targetQty, th);
               return (
                 <li key={i} className={`row ${isHero?'hero':''}`}>
